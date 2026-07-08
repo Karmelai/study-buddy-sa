@@ -1,21 +1,41 @@
 // Change these to switch providers/models later.
-const GROK_API_KEY = "your-key-here";
-const GROK_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama-3.1-8b-instant";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+const MODEL = "gemini-2.5-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export async function callAI(messages: ChatMessage[]): Promise<string> {
-  const res = await fetch(GROK_URL, {
+export async function callAI(messages: ChatMessage[], userName: string = "Student"): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Missing Gemini API key. Set VITE_GEMINI_API_KEY in your environment.");
+  }
+
+  const personalInstruction = `The student's name is ${userName}. Address them warmly by their first name or username in a natural, friendly way. Never mention their email address.`;
+  const normalizedMessages = messages[0]?.role === "system"
+    ? [{ role: "system", content: `${messages[0].content}\n\n${personalInstruction}` }, ...messages.slice(1)]
+    : [{ role: "system", content: personalInstruction }, ...messages];
+
+  const systemPrompt = normalizedMessages.find((message) => message.role === "system")?.content ?? "";
+  const contents = normalizedMessages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }],
+    }));
+
+  const res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${GROK_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MODEL,
-      messages,
-      temperature: 0.5,
+      systemInstruction: systemPrompt
+        ? { parts: [{ text: systemPrompt }] }
+        : undefined,
+      contents,
+      generationConfig: {
+        temperature: 0.6,
+      },
     }),
   });
 
@@ -25,5 +45,6 @@ export async function callAI(messages: ChatMessage[]): Promise<string> {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((part: { text?: string }) => part.text ?? "").join("");
 }
