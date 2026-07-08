@@ -57,18 +57,20 @@ export const useKarmelStore = create<State>()(
       email: null,
       grade: 10,
       subjects: [],
+      role: "student",
       users: [],
       lastSubject: null,
       lastMode: null,
       activities: [],
-      signup: (email, password, grade, studentName, subjects) => {
+      signup: (email, password, grade, studentName, subjects, role) => {
         const e = email.trim().toLowerCase();
         if (get().users.some((u) => u.email === e)) {
           return { ok: false, error: "An account with that email already exists." };
         }
         const name = normalizeName(studentName ?? "");
         const selectedSubjects = (subjects ?? []).filter(Boolean);
-        const user: User = { email: e, password, grade, studentName: name, subjects: selectedSubjects };
+        const userRole: Role = role ?? "student";
+        const user: User = { email: e, password, grade, studentName: name, subjects: selectedSubjects, role: userRole };
         set((s) => ({
           users: [...s.users, user],
           isAuthed: true,
@@ -76,6 +78,7 @@ export const useKarmelStore = create<State>()(
           grade,
           studentName: name,
           subjects: selectedSubjects,
+          role: userRole,
         }));
         return { ok: true };
       },
@@ -91,6 +94,7 @@ export const useKarmelStore = create<State>()(
           grade: user.grade,
           studentName: normalizeName(user.studentName ?? ""),
           subjects: user.subjects ?? [],
+          role: user.role ?? "student",
         });
         return { ok: true };
       },
