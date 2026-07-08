@@ -59,7 +59,7 @@ function Auth() {
         setError("Passwords do not match.");
         return;
       }
-      const res = signup(email, password, grade, studentName, selectedSubjects);
+      const res = signup(email, password, grade, studentName, selectedSubjects, role);
       if (!res.ok) return setError(res.error ?? "Could not sign up.");
     } else {
       const res = login(email, password);
