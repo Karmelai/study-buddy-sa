@@ -26,6 +26,7 @@ function Auth() {
   const [confirm, setConfirm] = useState("");
   const [grade, setGrade] = useState(10);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const [error, setError] = useState<string | null>(null);
   const subjectConfig = useMemo(() => getSubjectConfigForGrade(grade), [grade]);
 
