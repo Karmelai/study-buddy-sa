@@ -92,6 +92,9 @@ export default function ChatInterface({
         } else {
           starterMessage = "Hello! How can I help you today?";
         }
+    }
+
+
     
     if (starterMessage) {
       base.push({ role: "assistant", content: starterMessage });
