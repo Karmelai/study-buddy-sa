@@ -133,29 +133,6 @@ function Auth() {
 
           {isSignup && (
             <>
-              <Field label="I am a">
-                <div className="flex border border-white/10 rounded-lg p-1 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setRole("student")}
-                    className={`flex-1 py-2 rounded-md transition ${
-                      role === "student" ? "bg-white text-black" : "text-white/60 hover:text-white"
-                    }`}
-                  >
-                    Student
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole("teacher")}
-                    className={`flex-1 py-2 rounded-md transition ${
-                      role === "teacher" ? "bg-white text-black" : "text-white/60 hover:text-white"
-                    }`}
-                  >
-                    Teacher
-                  </button>
-                </div>
-              </Field>
-
               <Field label="Confirm Password">
                 <input
                   type="password"
@@ -166,6 +143,7 @@ function Auth() {
                   placeholder="••••••••"
                 />
               </Field>
+
 
               <Field label="Grade">
                 <select
