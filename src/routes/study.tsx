@@ -1,15 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import ChatInterface from "@/components/ChatInterface";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
+import { TEACHER_MODES } from "@/lib/prompts";
 
 export const Route = createFileRoute("/study")({
   head: () => ({ meta: [{ title: "Study - KARMEL" }] }),
   component: Study,
 });
 
-const MODES = [
+const STUDENT_MODES = [
   { id: "explain", label: "Explain a Topic", desc: "Break down any topic step-by-step." },
   { id: "practice", label: "Practice Questions", desc: "Try guided practice with feedback." },
   { id: "quiz", label: "Test My Knowledge", desc: "Short quiz with instant marking." },
