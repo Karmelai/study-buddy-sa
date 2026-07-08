@@ -26,6 +26,7 @@ function Auth() {
   const [confirm, setConfirm] = useState("");
   const [grade, setGrade] = useState(10);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const [error, setError] = useState<string | null>(null);
   const subjectConfig = useMemo(() => getSubjectConfigForGrade(grade), [grade]);
 
@@ -58,7 +59,7 @@ function Auth() {
         setError("Passwords do not match.");
         return;
       }
-      const res = signup(email, password, grade, studentName, selectedSubjects);
+      const res = signup(email, password, grade, studentName, selectedSubjects, role);
       if (!res.ok) return setError(res.error ?? "Could not sign up.");
     } else {
       const res = login(email, password);
@@ -132,6 +133,29 @@ function Auth() {
 
           {isSignup && (
             <>
+              <Field label="I am a">
+                <div className="flex border border-white/10 rounded-lg p-1 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setRole("student")}
+                    className={`flex-1 py-2 rounded-md transition ${
+                      role === "student" ? "bg-white text-black" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    Student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole("teacher")}
+                    className={`flex-1 py-2 rounded-md transition ${
+                      role === "teacher" ? "bg-white text-black" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    Teacher
+                  </button>
+                </div>
+              </Field>
+
               <Field label="Confirm Password">
                 <input
                   type="password"

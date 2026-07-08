@@ -39,10 +39,11 @@ export default function ChatInterface({
 }: Props) {
   const grade = useKarmelStore((s) => s.grade);
   const studentName = useKarmelStore((s) => s.studentName);
+  const role = useKarmelStore((s) => s.role);
 
   const systemContent =
-    buildSystemPrompt(grade, mode, subject, studentName) +
-    `\n\nStudent name: ${studentName}.` +
+    buildSystemPrompt(grade, mode, subject, studentName, role) +
+    `\n\n${role === "teacher" ? "Teacher" : "Student"} name: ${studentName}.` +
     (subject ? `\nSubject: ${subject}.` : "") +
     (modeStarters[mode] ? `\n\n${modeStarters[mode]}` : "") +
     (contextNote ? `\n\nContext: ${contextNote}` : "");
@@ -78,8 +79,22 @@ export default function ChatInterface({
           : "Time for revision. Where should we begin?";
         break;
       default:
-        starterMessage = "Hello! How can I help you today?";
+        if (mode.startsWith("teacher_")) {
+          const teacherStarters: Record<string, string> = {
+            teacher_quiz: `Hi ${studentName}! Let's build a quiz${subject ? ` for ${subject}` : ""}. What topic and how many questions?`,
+            teacher_lesson: `Hi ${studentName}! Let's draft a lesson plan${subject ? ` for ${subject}` : ""}. What topic and how long is the lesson?`,
+            teacher_marking: `Hi ${studentName}! Share the question, the memo or rubric, and the learner's answer, and I'll help you mark it.`,
+            teacher_homework: `Hi ${studentName}! Let's create some homework${subject ? ` for ${subject}` : ""}. What topic and difficulty level?`,
+            teacher_simplify: `Hi ${studentName}! Which topic${subject ? ` in ${subject}` : ""} would you like me to simplify, and for which grade?`,
+            teacher_remedial: `Hi ${studentName}! Are we building a remedial or extension activity, and on what topic?`,
+          };
+          starterMessage = teacherStarters[mode] ?? "Hello! How can I help you today?";
+        } else {
+          starterMessage = "Hello! How can I help you today?";
+        }
     }
+
+
     
     if (starterMessage) {
       base.push({ role: "assistant", content: starterMessage });
