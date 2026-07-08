@@ -133,6 +133,35 @@ function Auth() {
 
           {isSignup && (
             <>
+              <Field label="Confirm Password">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className="input"
+                  placeholder="••••••••"
+                />
+              </Field>
+
+
+              <Field label="Grade">
+                <select
+                  value={grade}
+                  onChange={(e) => {
+                    setGrade(Number(e.target.value));
+                    setSelectedSubjects([]);
+                  }}
+                  className="input"
+                >
+                  {[8, 9, 10, 11, 12].map((g) => (
+                    <option key={g} value={g} className="bg-black">
+                      Grade {g}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <Field label="I am a">
                 <div className="flex border border-white/10 rounded-lg p-1 text-sm">
                   <button
@@ -156,33 +185,7 @@ function Auth() {
                 </div>
               </Field>
 
-              <Field label="Confirm Password">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  className="input"
-                  placeholder="••••••••"
-                />
-              </Field>
 
-              <Field label="Grade">
-                <select
-                  value={grade}
-                  onChange={(e) => {
-                    setGrade(Number(e.target.value));
-                    setSelectedSubjects([]);
-                  }}
-                  className="input"
-                >
-                  {[8, 9, 10, 11, 12].map((g) => (
-                    <option key={g} value={g} className="bg-black">
-                      Grade {g}
-                    </option>
-                  ))}
-                </select>
-              </Field>
 
               <Field label="Choose your subjects">
                 <p className="text-xs text-white/50 mb-3">
