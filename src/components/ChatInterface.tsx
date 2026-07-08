@@ -39,10 +39,11 @@ export default function ChatInterface({
 }: Props) {
   const grade = useKarmelStore((s) => s.grade);
   const studentName = useKarmelStore((s) => s.studentName);
+  const role = useKarmelStore((s) => s.role);
 
   const systemContent =
-    buildSystemPrompt(grade, mode, subject, studentName) +
-    `\n\nStudent name: ${studentName}.` +
+    buildSystemPrompt(grade, mode, subject, studentName, role) +
+    `\n\n${role === "teacher" ? "Teacher" : "Student"} name: ${studentName}.` +
     (subject ? `\nSubject: ${subject}.` : "") +
     (modeStarters[mode] ? `\n\n${modeStarters[mode]}` : "") +
     (contextNote ? `\n\nContext: ${contextNote}` : "");
