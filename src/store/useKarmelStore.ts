@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export type Role = "student" | "teacher";
+
 export type Activity = {
   id: string;
   type: "study" | "pastpaper";
@@ -17,6 +19,7 @@ export type User = {
   grade: number;
   studentName: string;
   subjects: string[];
+  role: Role;
 };
 
 type State = {
@@ -25,11 +28,12 @@ type State = {
   email: string | null;
   grade: number;
   subjects: string[];
+  role: Role;
   users: User[];
   lastSubject: string | null;
   lastMode: string | null;
   activities: Activity[];
-  signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[]) => { ok: boolean; error?: string };
+  signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role) => { ok: boolean; error?: string };
   login: (email: string, password: string) => { ok: boolean; error?: string };
   logout: () => void;
   setStudent: (name: string, grade: number) => void;
