@@ -20,12 +20,14 @@ const STUDENT_MODES = [
 
 function Study() {
   const grade = useKarmelStore((s) => s.grade);
+  const role = useKarmelStore((s) => s.role);
   const savedSubjects = useKarmelStore((s) => s.subjects);
   const setSubjects = useKarmelStore((s) => s.setSubjects);
   const subjectConfig = getSubjectConfigForGrade(grade);
   const [subject, setSubject] = useState<string | null>(null);
   const [mode, setMode] = useState<string | null>(null);
   const setLast = useKarmelStore((s) => s.setLast);
+  const MODES = useMemo(() => (role === "teacher" ? TEACHER_MODES : STUDENT_MODES), [role]);
 
   useEffect(() => {
     setSubject(null);
