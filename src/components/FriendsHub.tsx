@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Users, XCircle } from "lucide-react";
+import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 import { getAvatarOption } from "@/lib/avatars";
 import { useKarmelStore, type SocialProfile } from "@/store/useKarmelStore";
+import FriendsDiscovery from "./FriendsDiscovery";
 import ProfileView from "./ProfileView";
 
 const ONLINE_WINDOW_MS = 20 * 60 * 1000;
@@ -41,6 +42,7 @@ const ProfileRow = ({ user }: { user: SocialProfile }) => {
 export default function FriendsHub() {
   const [selectedFriend, setSelectedFriend] = useState<SocialProfile | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
   const friendsList = useKarmelStore((s) => s.friendsList);
   const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
@@ -75,14 +77,24 @@ export default function FriendsHub() {
               Accept incoming requests, decline the ones you do not know, and keep your study circle clean.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/75">
-            <Users size={16} />
-            {friendsList.length} friends
-            {pendingIncomingRequests.length > 0 ? (
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-black">
-                {pendingIncomingRequests.length} pending
-              </span>
-            ) : null}
+          <div className="flex flex-col items-stretch gap-3 sm:items-end">
+            <button
+              type="button"
+              onClick={() => setIsDiscoveryOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
+            >
+              <Search size={16} />
+              Search friends
+            </button>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/75">
+              <Users size={16} />
+              {friendsList.length} friends
+              {pendingIncomingRequests.length > 0 ? (
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-black">
+                  {pendingIncomingRequests.length} pending
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -171,6 +183,8 @@ export default function FriendsHub() {
         isCurrentUser={false}
         onSettingsClick={() => {}}
       />
+
+      <FriendsDiscovery isOpen={isDiscoveryOpen} onClose={() => setIsDiscoveryOpen(false)} />
     </div>
   );
 }

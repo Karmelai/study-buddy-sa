@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Menu, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
 import ProfileView from "./ProfileView";
@@ -47,6 +47,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [draftIsPublic, setDraftIsPublic] = useState(is_public);
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const availableSubjects = getSubjectConfigForGrade(grade).subjects;
   const isNameCooldownActive = Boolean(lastNameChangeTimestamp && Date.now() - lastNameChangeTimestamp < NAME_CHANGE_COOLDOWN_MS);
@@ -72,6 +73,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
       navigate({ to: "/auth", search: { mode: "login" } });
     }
   }, [isAuthed, pathname, navigate]);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isAuthed || !userId) return;
@@ -229,7 +234,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Link to="/" className="font-semibold tracking-wide text-lg">
             KARMEL
           </Link>
-          <nav className="flex gap-4 text-sm text-white/60 items-center">
+          <nav className="hidden gap-4 text-sm text-white/60 items-center sm:flex">
             <Link to="/" activeProps={{ className: "text-white" }} activeOptions={{ exact: true }}>
               Home
             </Link>
@@ -247,6 +252,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </span>
               ) : null}
             </Link>
+          </nav>
+          <div className="relative flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsMobileNavOpen((open) => !open)}
+              className="inline-flex h-10 w-10 items-center justify-center text-white transition hover:text-white/80 sm:hidden"
+              aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-haspopup="menu"
+              aria-expanded={isMobileNavOpen}
+            >
+              {isMobileNavOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
             <button
               type="button"
               onClick={() => setIsProfilePageOpen(true)}
@@ -259,7 +276,53 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <img src={selectedAvatar.image} alt={selectedAvatar.label} className="h-full w-full object-cover" />
               )}
             </button>
-          </nav>
+            <div
+              className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
+                isMobileNavOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
+              }`}
+              role="menu"
+              aria-label="Mobile navigation"
+            >
+              <div className="border-b border-white/10 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-white/40">Navigate</p>
+              </div>
+              <div className="flex flex-col p-2 text-sm text-white/80">
+                <Link
+                  to="/"
+                  activeProps={{ className: "bg-white/10 text-white" }}
+                  activeOptions={{ exact: true }}
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
+                >
+                  Home
+                </Link>
+                <Link
+                  to="/study"
+                  activeProps={{ className: "bg-white/10 text-white" }}
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
+                >
+                  Study
+                </Link>
+                <Link
+                  to="/papers"
+                  activeProps={{ className: "bg-white/10 text-white" }}
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
+                >
+                  Past Papers
+                </Link>
+                <Link
+                  to="/friends"
+                  activeProps={{ className: "bg-white/10 text-white" }}
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
+                >
+                  Friends
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
       <main className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">{children}</main>
