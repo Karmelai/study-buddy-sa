@@ -1,50 +1,41 @@
-// Change these to switch providers/models later.
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const MODEL = "gemini-3.1-flash-lite-preview";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+import { supabase } from "@/lib/supabase";
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export async function callAI(messages: ChatMessage[], userName: string = "Student"): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("Missing Gemini API key. Set VITE_GEMINI_API_KEY in your environment.");
-  }
-
-  const personalInstruction = `The student's name is ${userName}. Address them warmly by their first name or username in a natural, friendly way. Never mention their email address.`;
-  const normalizedMessages = messages[0]?.role === "system"
-    ? [{ role: "system", content: `${messages[0].content}\n\n${personalInstruction}` }, ...messages.slice(1)]
-    : [{ role: "system", content: personalInstruction }, ...messages];
-
-  const systemPrompt = normalizedMessages.find((message) => message.role === "system")?.content ?? "";
-  const contents = normalizedMessages
+const formatPrompt = (messages: ChatMessage[], userName: string) => {
+  const systemMessage = messages.find((message) => message.role === "system")?.content ?? "";
+  const conversation = messages
     .filter((message) => message.role !== "system")
-    .map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }],
-    }));
+    .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`)
+    .join("\n");
 
-  const res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      systemInstruction: systemPrompt
-        ? { parts: [{ text: systemPrompt }] }
-        : undefined,
-      contents,
-      generationConfig: {
-        temperature: 0.6,
-      },
-    }),
+  return [
+    systemMessage,
+    `Student name: ${userName}.`,
+    "Conversation:",
+    conversation,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+};
+
+export async function callAI(messages: ChatMessage[], userName: string = "Student"): Promise<string> {
+  const prompt = formatPrompt(messages, userName);
+  const { data, error } = await supabase.functions.invoke<{ text?: string }>("gemini-proxy", {
+    body: { prompt },
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`AI request failed (${res.status}): ${text}`);
+  if (error) {
+    throw new Error(error.message || "AI request failed.");
   }
 
-  const data = await res.json();
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  return parts.map((part: { text?: string }) => part.text ?? "").join("");
+  const text = typeof data === "string"
+    ? data
+    : data?.text ?? "";
+
+  if (!text.trim()) {
+    throw new Error("AI request returned an empty response.");
+  }
+
+  return text;
 }
