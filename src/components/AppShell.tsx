@@ -1,13 +1,16 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Menu, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
+import { toast } from "sonner";
 import ProfileView from "./ProfileView";
 
 const PROFILE_SETTINGS_KEY = "karmel-profile-settings";
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const GRADE_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const FRIEND_PRESENCE_POLL_MS = 60 * 1000;
+const ONLINE_WINDOW_MS = 20 * 60 * 1000;
 
 const formatRemainingTime = (ms: number) => {
   if (ms <= 0) return "";
@@ -17,6 +20,13 @@ const formatRemainingTime = (ms: number) => {
     return `${days} day${days === 1 ? "" : "s"}, ${hours} hour${hours === 1 ? "" : "s"}`;
   }
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+};
+
+const isRecentlySeen = (lastSeenAt?: string | null) => {
+  if (!lastSeenAt) return false;
+  const timestamp = Date.parse(lastSeenAt);
+  if (Number.isNaN(timestamp)) return false;
+  return Date.now() - timestamp < ONLINE_WINDOW_MS;
 };
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -33,6 +43,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
   const updatePrivacySettings = useKarmelStore((s) => s.updatePrivacySettings);
   const updateUserPresence = useKarmelStore((s) => s.updateUserPresence);
+  const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
+  const friendsList = useKarmelStore((s) => s.friendsList);
   const setStudent = useKarmelStore((s) => s.setStudent);
   const setAvatar = useKarmelStore((s) => s.setAvatar);
   const setSubjects = useKarmelStore((s) => s.setSubjects);
@@ -48,6 +60,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const seenOnlineFriendIdsRef = useRef<Set<string> | null>(null);
 
   const availableSubjects = getSubjectConfigForGrade(grade).subjects;
   const isNameCooldownActive = Boolean(lastNameChangeTimestamp && Date.now() - lastNameChangeTimestamp < NAME_CHANGE_COOLDOWN_MS);
@@ -145,6 +158,60 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [isAuthed, userId, updateUserPresence]);
 
   useEffect(() => {
+    if (!isAuthed || !userId) return;
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+
+    const syncPresence = async () => {
+      await refreshNetworkData();
+      if (cancelled) return;
+
+      const onlineIds = new Set(
+        useKarmelStore
+          .getState()
+          .friendsList.filter((friend) => isRecentlySeen(friend.last_seen_at))
+          .map((friend) => friend.id),
+      );
+
+      if (seenOnlineFriendIdsRef.current === null) {
+        seenOnlineFriendIdsRef.current = onlineIds;
+        return;
+      }
+
+      const previousOnlineIds = seenOnlineFriendIdsRef.current;
+      seenOnlineFriendIdsRef.current = onlineIds;
+
+      const newlyOnlineFriends = useKarmelStore
+        .getState()
+        .friendsList.filter(
+          (friend) => onlineIds.has(friend.id) && !previousOnlineIds.has(friend.id),
+        );
+
+      newlyOnlineFriends.slice(0, 3).forEach((friend) => {
+        toast(`${friend.full_name} is online`, {
+          description: "Tap to open your Friends page.",
+          duration: 4000,
+          action: {
+            label: "Open",
+            onClick: () => navigate({ to: "/friends" }),
+          },
+        });
+      });
+    };
+
+    void syncPresence();
+    const interval = window.setInterval(() => {
+      void syncPresence();
+    }, FRIEND_PRESENCE_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isAuthed, userId, navigate, refreshNetworkData]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(PROFILE_SETTINGS_KEY);
@@ -190,6 +257,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
     window.localStorage.setItem(PROFILE_SETTINGS_KEY, JSON.stringify(payload));
   }, [draftName, draftSubjects, draftGrade, draftAvatarId, lastNameChangeTimestamp, lastGradeChangeTimestamp]);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      seenOnlineFriendIdsRef.current = null;
+      return;
+    }
+
+    seenOnlineFriendIdsRef.current = new Set(
+      friendsList.filter((friend) => isRecentlySeen(friend.last_seen_at)).map((friend) => friend.id),
+    );
+  }, [friendsList, isAuthed]);
 
   const handleApplyProfile = () => {
     const nextName = !isNameCooldownActive && hasNameChanged ? draftName.trim() || "Student" : studentName;

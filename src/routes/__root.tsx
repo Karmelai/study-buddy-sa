@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -121,6 +122,20 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          duration: 4000,
+          classNames: {
+            toast: "border border-white/10 bg-zinc-950/95 text-white shadow-2xl shadow-black/50 backdrop-blur-xl",
+            description: "text-white/60",
+            actionButton: "bg-white text-black hover:bg-white/90",
+            cancelButton: "bg-white/10 text-white hover:bg-white/20",
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }
