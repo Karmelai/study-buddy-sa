@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
 
 export type Role = "student" | "teacher";
 export type TimerMode = "study" | "break";
@@ -187,7 +187,7 @@ const syncProfileToSupabase = async (userId: string | null, updates: Record<stri
   }
 };
 
-const OFFLINE_STALE_OFFSET_MS = 20 * 60 * 1000 + 60 * 1000;
+const OFFLINE_STALE_OFFSET_MS = 90 * 1000 + 1000;
 const DEFAULT_STUDY_DURATION_MINUTES = 25;
 const DEFAULT_BREAK_DURATION_MINUTES = 15;
 const XP_PER_FOCUS_MINUTE = 10;
@@ -226,8 +226,34 @@ const applyXpProgression = (currentLevel: number, currentXp: number, xpGain: num
 const markOfflineInSupabase = async (userId: string | null) => {
   if (!userId) return;
   const staleTimestamp = new Date(Date.now() - OFFLINE_STALE_OFFSET_MS).toISOString();
-  const { error } = await supabase.from("profiles").update({ last_seen_at: staleTimestamp }).eq("id", userId);
-  if (error) {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  if (!accessToken) {
+    const { error } = await supabase.from("profiles").update({ last_seen_at: staleTimestamp }).eq("id", userId);
+    if (error) {
+      console.error("markOfflineInSupabase failed", error);
+    }
+    return;
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ last_seen_at: staleTimestamp }),
+      keepalive: true,
+    });
+
+    if (!response.ok) {
+      console.error("markOfflineInSupabase failed", response.status, response.statusText);
+    }
+  } catch (error) {
     console.error("markOfflineInSupabase failed", error);
   }
 };
@@ -261,7 +287,7 @@ type FollowRow = {
 const getFollowRowKey = (row: Pick<FollowRow, "follower_id" | "following_id">) =>
   `${row.follower_id}-${row.following_id}`;
 
-const PRESENCE_THROTTLE_MS = 3 * 60 * 1000;
+const PRESENCE_THROTTLE_MS = 20 * 1000;
 let lastPresenceUpdateAt = 0;
 
 const fetchProfilesByIds = async (ids: string[]) => {

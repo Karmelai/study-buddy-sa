@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Menu, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
+import { isRecentlySeen, PRESENCE_ONLINE_WINDOW_MS } from "@/lib/presence";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
 import { toast } from "sonner";
 import ProfileView from "./ProfileView";
@@ -9,8 +10,7 @@ import ProfileView from "./ProfileView";
 const PROFILE_SETTINGS_KEY = "karmel-profile-settings";
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const GRADE_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-const FRIEND_PRESENCE_POLL_MS = 60 * 1000;
-const ONLINE_WINDOW_MS = 20 * 60 * 1000;
+const FRIEND_PRESENCE_POLL_MS = 20 * 1000;
 
 const formatRemainingTime = (ms: number) => {
   if (ms <= 0) return "";
@@ -20,13 +20,6 @@ const formatRemainingTime = (ms: number) => {
     return `${days} day${days === 1 ? "" : "s"}, ${hours} hour${hours === 1 ? "" : "s"}`;
   }
   return `${hours} hour${hours === 1 ? "" : "s"}`;
-};
-
-const isRecentlySeen = (lastSeenAt?: string | null) => {
-  if (!lastSeenAt) return false;
-  const timestamp = Date.parse(lastSeenAt);
-  if (Number.isNaN(timestamp)) return false;
-  return Date.now() - timestamp < ONLINE_WINDOW_MS;
 };
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -63,7 +56,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [presenceAlert, setPresenceAlert] = useState<{ label: string; count: number } | null>(null);
   const seenOnlineFriendIdsRef = useRef<Set<string> | null>(null);
+  const presenceAlertTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   const availableSubjects = getSubjectConfigForGrade(grade).subjects;
   const isNameCooldownActive = Boolean(lastNameChangeTimestamp && Date.now() - lastNameChangeTimestamp < NAME_CHANGE_COOLDOWN_MS);
@@ -99,7 +94,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
 
     const inactivityLimitMs = 20 * 60 * 1000;
-    const heartbeatMs = 3 * 60 * 1000;
+    const heartbeatMs = Math.min(20 * 1000, PRESENCE_ONLINE_WINDOW_MS / 3);
     let isIdle = false;
     let heartbeatTimer: ReturnType<typeof window.setInterval> | null = null;
     let inactivityTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -167,15 +162,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
     const goOffline = () => {
       void markOffline();
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        goOffline();
+      }
+    };
 
     window.addEventListener("pagehide", goOffline);
     window.addEventListener("beforeunload", goOffline);
     window.addEventListener("offline", goOffline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("pagehide", goOffline);
       window.removeEventListener("beforeunload", goOffline);
       window.removeEventListener("offline", goOffline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isAuthed, userId, markOffline]);
 
@@ -233,6 +235,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
           },
         });
       });
+
+      if (newlyOnlineFriends.length > 0) {
+        const firstFriend = newlyOnlineFriends[0];
+        setPresenceAlert({
+          label: newlyOnlineFriends.length === 1 ? `${firstFriend.full_name} is online` : `${newlyOnlineFriends.length} friends are online`,
+          count: newlyOnlineFriends.length,
+        });
+        if (presenceAlertTimerRef.current) {
+          window.clearTimeout(presenceAlertTimerRef.current);
+        }
+        presenceAlertTimerRef.current = window.setTimeout(() => {
+          setPresenceAlert(null);
+        }, 4000);
+      }
     };
 
     void syncPresence();
@@ -245,6 +261,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
     };
   }, [isAuthed, userId, navigate, refreshNetworkData]);
+
+  useEffect(() => {
+    return () => {
+      if (presenceAlertTimerRef.current) {
+        window.clearTimeout(presenceAlertTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -392,6 +416,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <img src={selectedAvatar.image} alt={selectedAvatar.label} className="h-full w-full object-cover" />
               )}
             </button>
+            {presenceAlert ? (
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/friends" })}
+                className="inline-flex max-w-[11rem] items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left text-xs text-emerald-200 transition hover:bg-emerald-400/15"
+                aria-label="Open friends presence"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
+                <span className="truncate">
+                  {presenceAlert.count > 1 ? `${presenceAlert.count} online` : presenceAlert.label}
+                </span>
+              </button>
+            ) : null}
             <div
               className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
                 isMobileNavOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"

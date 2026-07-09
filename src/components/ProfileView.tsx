@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Settings } from "lucide-react";
+import { isRecentlySeen } from "@/lib/presence";
 import { useKarmelStore, type SocialProfile, type UserProfile } from "@/store/useKarmelStore";
 import { DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { supabase } from "@/lib/supabase";
@@ -13,7 +14,6 @@ interface ProfileViewProps {
   onFollowChange?: (userId: string, isFollowing: boolean) => void;
 }
 
-const ONLINE_WINDOW_MS = 20 * 60 * 1000;
 type ConnectionView = "followers" | "following";
 
 type ConnectionProfileRow = {
@@ -35,13 +35,6 @@ const normalizeDisplayUsername = (username: string) => {
   const trimmed = username.trim();
   if (!trimmed) return "@student";
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
-};
-
-const isRecentlySeen = (lastSeenAt?: string | null) => {
-  if (!lastSeenAt) return false;
-  const timestamp = Date.parse(lastSeenAt);
-  if (Number.isNaN(timestamp)) return false;
-  return Date.now() - timestamp < ONLINE_WINDOW_MS;
 };
 
 const toConnectionProfile = (profile: ConnectionProfileRow): SocialProfile => ({

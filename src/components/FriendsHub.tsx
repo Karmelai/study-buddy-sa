@@ -1,18 +1,10 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 import { getAvatarOption } from "@/lib/avatars";
+import { isRecentlySeen } from "@/lib/presence";
 import { useKarmelStore, type SocialProfile } from "@/store/useKarmelStore";
 import FriendsDiscovery from "./FriendsDiscovery";
 import ProfileView from "./ProfileView";
-
-const ONLINE_WINDOW_MS = 20 * 60 * 1000;
-
-const isRecentlySeen = (lastSeenAt?: string | null) => {
-  if (!lastSeenAt) return false;
-  const timestamp = Date.parse(lastSeenAt);
-  if (Number.isNaN(timestamp)) return false;
-  return Date.now() - timestamp < ONLINE_WINDOW_MS;
-};
 
 const ProfileRow = ({ user }: { user: SocialProfile }) => {
   const avatar = getAvatarOption(user.avatar_id);
