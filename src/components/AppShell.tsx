@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
+import ProfileView from "./ProfileView";
 
 const PROFILE_SETTINGS_KEY = "karmel-profile-settings";
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,21 +21,30 @@ const formatRemainingTime = (ms: number) => {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const isAuthed = useKarmelStore((s) => s.isAuthed);
+  const userId = useKarmelStore((s) => s.userId);
   const logout = useKarmelStore((s) => s.logout);
   const studentName = useKarmelStore((s) => s.studentName);
+  const username = useKarmelStore((s) => s.username);
   const avatarId = useKarmelStore((s) => s.avatarId);
   const grade = useKarmelStore((s) => s.grade);
+  const level = useKarmelStore((s) => s.level);
   const subjects = useKarmelStore((s) => s.subjects);
+  const is_public = useKarmelStore((s) => s.is_public);
+  const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
+  const updatePrivacySettings = useKarmelStore((s) => s.updatePrivacySettings);
+  const updateUserPresence = useKarmelStore((s) => s.updateUserPresence);
   const setStudent = useKarmelStore((s) => s.setStudent);
   const setAvatar = useKarmelStore((s) => s.setAvatar);
   const setSubjects = useKarmelStore((s) => s.setSubjects);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [draftName, setDraftName] = useState(studentName);
   const [draftSubjects, setDraftSubjects] = useState<string[]>(subjects);
   const [draftGrade, setDraftGrade] = useState<number>(grade);
   const [draftAvatarId, setDraftAvatarId] = useState<AvatarId>(avatarId);
+  const [draftIsPublic, setDraftIsPublic] = useState(is_public);
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
 
@@ -62,6 +72,72 @@ export default function AppShell({ children }: { children: ReactNode }) {
       navigate({ to: "/auth", search: { mode: "login" } });
     }
   }, [isAuthed, pathname, navigate]);
+
+  useEffect(() => {
+    if (!isAuthed || !userId) return;
+    if (typeof window === "undefined") return;
+
+    const inactivityLimitMs = 20 * 60 * 1000;
+    const heartbeatMs = 3 * 60 * 1000;
+    let isIdle = false;
+    let heartbeatTimer: ReturnType<typeof window.setInterval> | null = null;
+    let inactivityTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+    const clearTimers = () => {
+      if (heartbeatTimer) {
+        window.clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+      if (inactivityTimer) {
+        window.clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+      }
+    };
+
+    const startHeartbeat = () => {
+      if (heartbeatTimer) return;
+      heartbeatTimer = window.setInterval(() => {
+        void updateUserPresence();
+      }, heartbeatMs);
+    };
+
+    const markIdle = () => {
+      isIdle = true;
+      if (heartbeatTimer) {
+        window.clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    };
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) {
+        window.clearTimeout(inactivityTimer);
+      }
+      inactivityTimer = window.setTimeout(markIdle, inactivityLimitMs);
+    };
+
+    const registerActivity = () => {
+      if (isIdle) {
+        isIdle = false;
+        startHeartbeat();
+        void updateUserPresence();
+      }
+      resetInactivityTimer();
+    };
+
+    void updateUserPresence();
+    startHeartbeat();
+    resetInactivityTimer();
+
+    window.addEventListener("click", registerActivity, true);
+    window.addEventListener("keydown", registerActivity, true);
+
+    return () => {
+      clearTimers();
+      window.removeEventListener("click", registerActivity, true);
+      window.removeEventListener("keydown", registerActivity, true);
+    };
+  }, [isAuthed, userId, updateUserPresence]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -122,6 +198,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
       setLastGradeChangeTimestamp(Date.now());
     }
 
+    if (draftIsPublic !== is_public) {
+      void updatePrivacySettings(draftIsPublic);
+    }
+
     setStudent(nextName, nextGrade);
     setAvatar(draftAvatarId);
     setSubjects(nextSubjects);
@@ -159,11 +239,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Link to="/papers" activeProps={{ className: "text-white" }}>
               Past Papers
             </Link>
+            <Link to="/friends" activeProps={{ className: "text-white" }} className="relative">
+              Friends
+              {pendingIncomingRequests.length > 0 ? (
+                <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                  {pendingIncomingRequests.length}
+                </span>
+              ) : null}
+            </Link>
             <button
               type="button"
-              onClick={() => setIsProfileOpen(true)}
+              onClick={() => setIsProfilePageOpen(true)}
               className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
-              aria-label="Open profile settings"
+              aria-label="Open profile"
             >
               {avatarId === DEFAULT_AVATAR_ID ? (
                 <span className="text-[11px] uppercase tracking-[0.25em] text-white/70">ME</span>
@@ -175,6 +263,33 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">{children}</main>
+
+      <ProfileView
+        isOpen={isProfilePageOpen}
+        onClose={() => setIsProfilePageOpen(false)}
+        user={
+          isProfilePageOpen
+            ? {
+                id: userId || "",
+                username: username,
+                full_name: studentName,
+                avatar_id: avatarId,
+                selected_subjects: subjects,
+                grade: grade,
+                level: level,
+                xp: useKarmelStore.getState().xp,
+                is_public: is_public,
+                followers_count: useKarmelStore.getState().followers_count,
+                following_count: useKarmelStore.getState().following_count,
+              }
+            : null
+        }
+        isCurrentUser={true}
+        onSettingsClick={() => {
+          setIsProfilePageOpen(false);
+          setIsProfileOpen(true);
+        }}
+      />
 
       <div
         className={`fixed inset-0 z-50 overflow-y-auto bg-black/75 px-4 py-6 sm:py-8 backdrop-blur-sm transition-all duration-300 ${
@@ -315,6 +430,47 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     </button>
                   );
                 })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+              <div>
+                <h3 className="text-base font-medium sm:text-lg">Account Privacy</h3>
+                <p className="mt-1 text-sm text-white/50">Control whether other students can find you in the study network.</p>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setDraftIsPublic(true)}
+                  className={`w-full text-left flex items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+                    draftIsPublic
+                      ? "border-white/20 bg-white text-black"
+                      : "border-white/10 bg-black/30 text-white/80 hover:border-white/20"
+                  }`}
+                >
+                  <div>
+                    <p className="font-medium">Public Account</p>
+                    <p className="text-xs opacity-70">Visible in global search</p>
+                  </div>
+                  {draftIsPublic ? <Check size={16} /> : null}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDraftIsPublic(false)}
+                  className={`w-full text-left flex items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
+                    !draftIsPublic
+                      ? "border-white/20 bg-white text-black"
+                      : "border-white/10 bg-black/30 text-white/80 hover:border-white/20"
+                  }`}
+                >
+                  <div>
+                    <p className="font-medium">Private Account</p>
+                    <p className="text-xs opacity-70">Hidden from search</p>
+                  </div>
+                  {!draftIsPublic ? <Check size={16} /> : null}
+                </button>
               </div>
             </section>
           </div>

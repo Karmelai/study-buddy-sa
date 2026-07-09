@@ -32,6 +32,7 @@ function Auth() {
   const [selectedAvatarId, setSelectedAvatarId] = useState<AvatarId>(DEFAULT_AVATAR_ID);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const subjectConfig = useMemo(() => getSubjectConfigForGrade(grade), [grade]);
 
   const setMode = (m: "login" | "signup") => {
@@ -39,35 +40,50 @@ function Auth() {
     navigate({ to: "/auth", search: { mode: m } });
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setError(null);
     if (!email.trim() || !password) {
       setError("Please fill in all required fields.");
+      setIsSubmitting(false);
       return;
     }
     if (isSignup && !studentName.trim()) {
       setError("Please enter your first name or username.");
+      setIsSubmitting(false);
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       setError("Please enter a valid email address.");
+      setIsSubmitting(false);
       return;
     }
     if (isSignup) {
       if (password.length < 6) {
         setError("Password must be at least 6 characters.");
+        setIsSubmitting(false);
         return;
       }
       if (password !== confirm) {
         setError("Passwords do not match.");
+        setIsSubmitting(false);
         return;
       }
-      const res = signup(email, password, grade, studentName, selectedSubjects, role, selectedAvatarId);
-      if (!res.ok) return setError(res.error ?? "Could not sign up.");
+      const res = await signup(email, password, grade, studentName, selectedSubjects, role, selectedAvatarId);
+      if (!res.ok) {
+        setError(res.error ?? "Could not sign up.");
+        setIsSubmitting(false);
+        return;
+      }
     } else {
-      const res = login(email, password);
-      if (!res.ok) return setError(res.error ?? "Could not log in.");
+      const res = await login(email, password);
+      if (!res.ok) {
+        setError(res.error ?? "Could not log in.");
+        setIsSubmitting(false);
+        return;
+      }
     }
     navigate({ to: "/study" });
   };
@@ -336,9 +352,10 @@ function Auth() {
 
           <button
             type="submit"
-            className="w-full bg-white text-black rounded-lg py-3 font-medium hover:bg-white/90 transition"
+            disabled={isSubmitting}
+            className="w-full rounded-lg py-3 font-medium transition disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-black/60 bg-white text-black hover:bg-white/90"
           >
-            {isSignup ? "Create account" : "Log in"}
+            {isSubmitting ? (isSignup ? "Creating Account..." : "Logging In...") : isSignup ? "Create account" : "Log in"}
           </button>
         </form>
 

@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import AppShell from "@/components/AppShell";
+import FriendsDiscovery from "@/components/FriendsDiscovery";
 import { useKarmelStore } from "@/store/useKarmelStore";
-import { BookOpen, FileText, RotateCcw } from "lucide-react";
+import { BookOpen, FileText, Users } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -14,7 +16,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const { studentName, grade, lastSubject, lastMode, activities, role } = useKarmelStore();
+  const { studentName, grade, activities, role } = useKarmelStore();
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
 
   const recommendation =
     activities.find((a) => a.weakTopics && a.weakTopics.length > 0) ?? null;
@@ -63,16 +66,14 @@ function Home() {
             <h3 className="mt-4 font-medium">{papersTitle}</h3>
             <p className="text-white/50 text-sm mt-1">{papersText}</p>
           </Link>
-          <Link
-            to={lastSubject ? "/study" : "/study"}
-            className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition"
+          <button
+            onClick={() => setIsDiscoveryOpen(true)}
+            className="group text-left border border-white/10 hover:border-white/40 rounded-2xl p-6 transition"
           >
-            <RotateCcw className="text-white/80" />
-            <h3 className="mt-4 font-medium">Continue Last Session</h3>
-            <p className="text-white/50 text-sm mt-1">
-              {lastSubject ? `${lastSubject} · ${lastMode}` : "No recent session yet."}
-            </p>
-          </Link>
+            <Users className="text-white/80" />
+            <h3 className="mt-4 font-medium">Add Friends & Study</h3>
+            <p className="text-white/50 text-sm mt-1">Discover and follow classmates to grow your study circle.</p>
+          </button>
         </section>
 
         {recommendation && (
@@ -107,6 +108,8 @@ function Home() {
           )}
         </section>
       </div>
+
+      <FriendsDiscovery isOpen={isDiscoveryOpen} onClose={() => setIsDiscoveryOpen(false)} />
     </AppShell>
   );
 }
