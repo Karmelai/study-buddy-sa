@@ -4,6 +4,7 @@ import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
 import { supabase } from "@/lib/supabase";
 
 export type Role = "student" | "teacher";
+export type TimerMode = "study" | "break";
 
 export type Activity = {
   id: string;
@@ -81,6 +82,14 @@ type State = {
   is_public: boolean;
   followers_count: number;
   following_count: number;
+  isTimerRunning: boolean;
+  timerMode: TimerMode;
+  studyDurationMinutes: number;
+  breakDurationMinutes: number;
+  studyTimeLeft: number;
+  breakTimeLeft: number;
+  totalSecondsFocused: number;
+  lastLevelUpAt: number | null;
   users: User[];
   lastSubject: string | null;
   lastMode: string | null;
@@ -98,6 +107,14 @@ type State = {
   setStudent: (name: string, grade: number) => void;
   setLevel: (level: number) => void;
   setXp: (xp: number) => void;
+  setTimerMode: (mode: TimerMode) => void;
+  setStudyDuration: (minutes: number) => void;
+  setBreakDuration: (minutes: number) => void;
+  startTimer: () => void;
+  pauseTimer: () => void;
+  resetTimer: () => void;
+  tickTimer: () => void;
+  completeStudySession: (durationSeconds: number) => Promise<void>;
   setAvatar: (avatarId: AvatarId) => void;
   setSubjects: (subjects: string[]) => void;
   setLast: (subject: string, mode: string) => void;
@@ -161,6 +178,7 @@ const hydrateStateFromProfile = (
   });
 };
 
+
 const syncProfileToSupabase = async (userId: string | null, updates: Record<string, unknown>) => {
   if (!userId) return;
   const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
@@ -170,6 +188,40 @@ const syncProfileToSupabase = async (userId: string | null, updates: Record<stri
 };
 
 const OFFLINE_STALE_OFFSET_MS = 20 * 60 * 1000 + 60 * 1000;
+const DEFAULT_STUDY_DURATION_MINUTES = 25;
+const DEFAULT_BREAK_DURATION_MINUTES = 15;
+const XP_PER_FOCUS_MINUTE = 10;
+
+const clampTimerSeconds = (seconds: number) => Math.max(0, Math.floor(seconds));
+
+const getTimerDefaults = () => ({
+  isTimerRunning: false,
+  timerMode: "study" as TimerMode,
+  studyDurationMinutes: DEFAULT_STUDY_DURATION_MINUTES,
+  breakDurationMinutes: DEFAULT_BREAK_DURATION_MINUTES,
+  studyTimeLeft: DEFAULT_STUDY_DURATION_MINUTES * 60,
+  breakTimeLeft: DEFAULT_BREAK_DURATION_MINUTES * 60,
+  totalSecondsFocused: 0,
+  lastLevelUpAt: null as number | null,
+});
+
+const applyXpProgression = (currentLevel: number, currentXp: number, xpGain: number) => {
+  let nextLevel = Math.max(1, Math.floor(currentLevel));
+  let nextXp = Math.max(0, Math.floor(currentXp + xpGain));
+  let leveledUp = false;
+
+  while (nextXp >= nextLevel * 100) {
+    nextXp -= nextLevel * 100;
+    nextLevel += 1;
+    leveledUp = true;
+  }
+
+  return {
+    level: nextLevel,
+    xp: nextXp,
+    leveledUp,
+  };
+};
 
 const markOfflineInSupabase = async (userId: string | null) => {
   if (!userId) return;
@@ -347,6 +399,7 @@ const getLoggedOutState = () => ({
   grade: 10,
   level: 1,
   xp: 0,
+  ...getTimerDefaults(),
   subjects: [] as string[],
   role: "student" as Role,
   avatarId: DEFAULT_AVATAR_ID,
@@ -375,6 +428,7 @@ export const useKarmelStore = create<State>()(
       grade: 10,
       level: 1,
       xp: 0,
+      ...getTimerDefaults(),
       subjects: [],
       role: "student",
       avatarId: DEFAULT_AVATAR_ID,
@@ -505,6 +559,7 @@ export const useKarmelStore = create<State>()(
           isAuthed: false,
           userId: null,
           email: null,
+          ...getTimerDefaults(),
         });
         void useKarmelStore.persist.clearStorage();
         window.location.reload();
@@ -563,6 +618,140 @@ export const useKarmelStore = create<State>()(
       },
       setXp: (xp) => {
         set({ xp: Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0 });
+      },
+      setTimerMode: (mode) => {
+        set({ timerMode: mode });
+      },
+      setStudyDuration: (minutes) => {
+        const nextMinutes = Math.max(1, Math.floor(minutes) || DEFAULT_STUDY_DURATION_MINUTES);
+        set((state) => ({
+          studyDurationMinutes: nextMinutes,
+          studyTimeLeft:
+            state.timerMode === "study" && !state.isTimerRunning
+              ? nextMinutes * 60
+              : state.studyTimeLeft,
+        }));
+      },
+      setBreakDuration: (minutes) => {
+        const nextMinutes = Math.max(1, Math.floor(minutes) || DEFAULT_BREAK_DURATION_MINUTES);
+        set((state) => ({
+          breakDurationMinutes: nextMinutes,
+          breakTimeLeft:
+            state.timerMode === "break" && !state.isTimerRunning
+              ? nextMinutes * 60
+              : state.breakTimeLeft,
+        }));
+      },
+      startTimer: () => {
+        const currentState = get();
+        const isStudyMode = currentState.timerMode === "study";
+        const currentTimeLeft = isStudyMode ? currentState.studyTimeLeft : currentState.breakTimeLeft;
+
+        if (currentTimeLeft <= 0) {
+          set({
+            isTimerRunning: false,
+            studyTimeLeft: isStudyMode ? currentState.studyDurationMinutes * 60 : currentState.studyTimeLeft,
+            breakTimeLeft: !isStudyMode ? currentState.breakDurationMinutes * 60 : currentState.breakTimeLeft,
+          });
+          return;
+        }
+
+        set({ isTimerRunning: true });
+      },
+      pauseTimer: () => {
+        set({ isTimerRunning: false });
+      },
+      resetTimer: () => {
+        const currentState = get();
+        set({
+          isTimerRunning: false,
+          studyTimeLeft: currentState.studyDurationMinutes * 60,
+          breakTimeLeft: currentState.breakDurationMinutes * 60,
+          totalSecondsFocused: 0,
+        });
+      },
+      tickTimer: () => {
+        const currentState = get();
+        if (!currentState.isTimerRunning) return;
+
+        if (currentState.timerMode === "study") {
+          const nextTimeLeft = clampTimerSeconds(currentState.studyTimeLeft - 1);
+          const nextFocusedSeconds = currentState.totalSecondsFocused + 1;
+
+          if (nextTimeLeft <= 0) {
+            set({
+              isTimerRunning: false,
+              timerMode: "break",
+              studyTimeLeft: 0,
+              breakTimeLeft: currentState.breakDurationMinutes * 60,
+              totalSecondsFocused: nextFocusedSeconds,
+            });
+            void get().completeStudySession(nextFocusedSeconds);
+            return;
+          }
+
+          set({
+            studyTimeLeft: nextTimeLeft,
+            totalSecondsFocused: nextFocusedSeconds,
+          });
+          return;
+        }
+
+        const nextTimeLeft = clampTimerSeconds(currentState.breakTimeLeft - 1);
+        if (nextTimeLeft <= 0) {
+          set({
+            isTimerRunning: false,
+            breakTimeLeft: 0,
+          });
+          return;
+        }
+
+        set({ breakTimeLeft: nextTimeLeft });
+      },
+      completeStudySession: async (durationSeconds) => {
+        const currentState = get();
+        const currentUserId = currentState.userId;
+        const focusedSeconds = Math.max(0, Math.floor(durationSeconds));
+        const durationMinutes = Math.max(1, Math.round(focusedSeconds / 60));
+        const xpGain = Math.max(XP_PER_FOCUS_MINUTE, durationMinutes * XP_PER_FOCUS_MINUTE);
+        const progression = applyXpProgression(currentState.level, currentState.xp, xpGain);
+        const finishedAt = new Date().toISOString();
+
+        set({
+          level: progression.level,
+          xp: progression.xp,
+          totalSecondsFocused: currentState.totalSecondsFocused,
+          lastLevelUpAt: progression.leveledUp ? Date.now() : currentState.lastLevelUpAt,
+          studyTimeLeft: currentState.studyDurationMinutes * 60,
+          breakTimeLeft: currentState.breakDurationMinutes * 60,
+          isTimerRunning: false,
+          timerMode: "break",
+        });
+
+        if (!currentUserId) {
+          return;
+        }
+
+        const sessionInsert = supabase.from("study_sessions").insert({
+          user_id: currentUserId,
+          duration_minutes: durationMinutes,
+          session_type: "study",
+          created_at: finishedAt,
+        });
+
+        const profileUpdate = syncProfileToSupabase(currentUserId, {
+          xp: progression.xp,
+          level: progression.level,
+        });
+
+        const [profileResult, sessionResult] = await Promise.allSettled([profileUpdate, sessionInsert]);
+
+        if (profileResult.status === "rejected") {
+          console.error("profile update failed", profileResult.reason);
+        }
+        if (sessionResult.status === "rejected") {
+          console.error("study_sessions insert failed", sessionResult.reason);
+        }
       },
       setAvatar: (avatarId) => {
         const currentState = get();
@@ -837,6 +1026,13 @@ export const useKarmelStore = create<State>()(
         grade: state.grade,
         level: state.level,
         xp: state.xp,
+        isTimerRunning: state.isTimerRunning,
+        timerMode: state.timerMode,
+        studyDurationMinutes: state.studyDurationMinutes,
+        breakDurationMinutes: state.breakDurationMinutes,
+        studyTimeLeft: state.studyTimeLeft,
+        breakTimeLeft: state.breakTimeLeft,
+        totalSecondsFocused: state.totalSecondsFocused,
         subjects: state.subjects,
         role: state.role,
         avatarId: state.avatarId,
@@ -893,6 +1089,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
       userId: null,
       user: null,
       email: null,
+      ...getTimerDefaults(),
       username: "",
       is_public: true,
       followers_count: 0,

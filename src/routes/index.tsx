@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import AppShell from "@/components/AppShell";
 import { useKarmelStore } from "@/store/useKarmelStore";
-import { BookOpen, FileText, Users } from "lucide-react";
+import { BookOpen, Clock3, FileText, Users } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,11 +43,16 @@ function Home() {
           <p className="text-sm uppercase tracking-widest text-white/40 mb-3">{dashboardHeader}</p>
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Link to="/study" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
             <BookOpen className="text-white/80" />
             <h3 className="mt-4 font-medium">{studyTitle}</h3>
             <p className="text-white/50 text-sm mt-1">{studyText}</p>
+          </Link>
+          <Link to="/timer" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
+            <Clock3 className="text-white/80" />
+            <h3 className="mt-4 font-medium">Study Timer</h3>
+            <p className="text-white/50 text-sm mt-1">Run a focused session with XP and leveling.</p>
           </Link>
           <Link to="/papers" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
             <FileText className="text-white/80" />

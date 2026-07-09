@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TimerRouteImport } from './routes/timer'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as PapersRouteImport } from './routes/papers'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TimerRoute = TimerRouteImport.update({
+  id: '/timer',
+  path: '/timer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/friends': typeof FriendsRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/timer': typeof TimerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/friends': typeof FriendsRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/timer': typeof TimerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,14 @@ export interface FileRoutesById {
   '/friends': typeof FriendsRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/timer': typeof TimerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/friends' | '/papers' | '/study'
+  fullPaths: '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/friends' | '/papers' | '/study'
-  id: '__root__' | '/' | '/auth' | '/friends' | '/papers' | '/study'
+  to: '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
+  id: '__root__' | '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +86,18 @@ export interface RootRouteChildren {
   FriendsRoute: typeof FriendsRoute
   PapersRoute: typeof PapersRoute
   StudyRoute: typeof StudyRoute
+  TimerRoute: typeof TimerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/timer': {
+      id: '/timer'
+      path: '/timer'
+      fullPath: '/timer'
+      preLoaderRoute: typeof TimerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/study': {
       id: '/study'
       path: '/study'
@@ -125,6 +142,7 @@ const rootRouteChildren: RootRouteChildren = {
   FriendsRoute: FriendsRoute,
   PapersRoute: PapersRoute,
   StudyRoute: StudyRoute,
+  TimerRoute: TimerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

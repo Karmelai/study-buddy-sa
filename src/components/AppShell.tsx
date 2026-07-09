@@ -38,6 +38,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const avatarId = useKarmelStore((s) => s.avatarId);
   const grade = useKarmelStore((s) => s.grade);
   const level = useKarmelStore((s) => s.level);
+  const isTimerRunning = useKarmelStore((s) => s.isTimerRunning);
   const subjects = useKarmelStore((s) => s.subjects);
   const is_public = useKarmelStore((s) => s.is_public);
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
@@ -45,6 +46,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const updateUserPresence = useKarmelStore((s) => s.updateUserPresence);
   const markOffline = useKarmelStore((s) => s.markOffline);
   const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
+  const tickTimer = useKarmelStore((s) => s.tickTimer);
   const friendsList = useKarmelStore((s) => s.friendsList);
   const setStudent = useKarmelStore((s) => s.setStudent);
   const setAvatar = useKarmelStore((s) => s.setAvatar);
@@ -176,6 +178,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
       window.removeEventListener("offline", goOffline);
     };
   }, [isAuthed, userId, markOffline]);
+
+  useEffect(() => {
+    if (!isAuthed || !isTimerRunning) return;
+    if (typeof window === "undefined") return;
+
+    const interval = window.setInterval(() => {
+      tickTimer();
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [isAuthed, isTimerRunning, tickTimer]);
 
   useEffect(() => {
     if (!isAuthed || !userId) return;
@@ -339,6 +354,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Link to="/study" activeProps={{ className: "text-white" }}>
               Study
             </Link>
+            <Link to="/timer" activeProps={{ className: "text-white" }}>
+              Timer
+            </Link>
             <Link to="/papers" activeProps={{ className: "text-white" }}>
               Past Papers
             </Link>
@@ -401,6 +419,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   className="rounded-xl px-3 py-3 transition hover:bg-white/10"
                 >
                   Study
+                </Link>
+                <Link
+                  to="/timer"
+                  activeProps={{ className: "bg-white/10 text-white" }}
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
+                >
+                  Timer
                 </Link>
                 <Link
                   to="/papers"
