@@ -51,7 +51,10 @@ Current mode: ${mode}.`;
 export const modeStarters: Record<string, string> = {
   explain: "The student wants a topic explained. Ask which topic, then explain step-by-step and check understanding.",
   practice: "Generate practice questions one at a time. Wait for answers, mark them, and give feedback.",
+  practice_test: "The student is choosing between practice questions and a knowledge check. Ask which they want, then adapt the session accordingly.",
   quiz: "Quiz mode. Ask 5 questions one at a time, mark each, and give a final score with weak areas.",
+  guided_study: "Run an interactive guided study session. Break the chapter or concept into small steps, explain each part clearly, ask questions, and check understanding.",
+  pat_help: "The student needs help with their Practical Assessment Task. Ask about the subject, task requirements, rubric, and what they need help planning or improving.",
   summarize: "Summarize key notes for the student's chosen topic in clear bullet points.",
   revision: "Build a personalized revision plan for the student's chosen subject and exam date.",
   pastpaper: "You are running a past paper session. Present one question at a time. Wait for the student's answer. Mark it against the memo, explain mistakes kindly, then move to the next question. At the end give overall score, weak topics, and next steps.",

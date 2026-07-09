@@ -14,10 +14,20 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const { studentName, grade, lastSubject, lastMode, activities, setStudent } = useKarmelStore();
+  const { studentName, grade, lastSubject, lastMode, activities, role } = useKarmelStore();
 
   const recommendation =
     activities.find((a) => a.weakTopics && a.weakTopics.length > 0) ?? null;
+  const isTeacher = role === "teacher";
+  const dashboardHeader = isTeacher ? "Select a subject to prepare" : "Select a subject to study";
+  const studyTitle = isTeacher ? "AI Teaching Assistant" : "Study a Subject";
+  const studyText = isTeacher
+    ? "Get guided help with lesson plans, homework, and topics."
+    : "Get guided help on any topic with your AI coach.";
+  const papersTitle = isTeacher ? "Exam Inspiration Engine" : "Practice Past Paper";
+  const papersText = isTeacher
+    ? "Let AI analyze past papers to extract high-yield, complex questions to inspire your next assessment."
+    : "Work through past exam questions one at a time.";
 
   return (
     <AppShell>
@@ -29,18 +39,11 @@ function Home() {
           </h1>
           <div className="mt-3 flex items-center gap-3 text-sm text-white/60">
             <span>Grade {grade}</span>
-            <span>·</span>
-            <button
-              onClick={() => {
-                const name = prompt("Your name?", studentName) || studentName;
-                const g = Number(prompt("Your grade (8-12)?", String(grade))) || grade;
-                setStudent(name, g);
-              }}
-              className="underline underline-offset-4 hover:text-white"
-            >
-              Edit profile
-            </button>
           </div>
+        </section>
+
+        <section>
+          <p className="text-sm uppercase tracking-widest text-white/40 mb-3">{dashboardHeader}</p>
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -49,20 +52,16 @@ function Home() {
             className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition"
           >
             <BookOpen className="text-white/80" />
-            <h3 className="mt-4 font-medium">Study a Subject</h3>
-            <p className="text-white/50 text-sm mt-1">
-              Get guided help on any topic with your AI coach.
-            </p>
+            <h3 className="mt-4 font-medium">{studyTitle}</h3>
+            <p className="text-white/50 text-sm mt-1">{studyText}</p>
           </Link>
           <Link
             to="/papers"
             className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition"
           >
             <FileText className="text-white/80" />
-            <h3 className="mt-4 font-medium">Practice Past Paper</h3>
-            <p className="text-white/50 text-sm mt-1">
-              Work through past exam questions one at a time.
-            </p>
+            <h3 className="mt-4 font-medium">{papersTitle}</h3>
+            <p className="text-white/50 text-sm mt-1">{papersText}</p>
           </Link>
           <Link
             to={lastSubject ? "/study" : "/study"}

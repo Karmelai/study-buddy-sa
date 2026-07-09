@@ -14,6 +14,7 @@ const SESSIONS = ["November Paper 1", "November Paper 2", "June Paper 1", "June 
 
 function Papers() {
   const grade = useKarmelStore((s) => s.grade);
+  const role = useKarmelStore((s) => s.role);
   const savedSubjects = useKarmelStore((s) => s.subjects);
   const [selectedGrade, setSelectedGrade] = useState<number>(grade);
   const [subject, setSubject] = useState<string | null>(null);
@@ -64,7 +65,14 @@ function Papers() {
         <div className="max-w-4xl mx-auto w-full space-y-10">
           <div>
             <p className="text-xs uppercase tracking-widest text-white/40">Past Papers</p>
-            <h1 className="text-2xl mt-1">Practice under real conditions</h1>
+            <h1 className="text-2xl mt-1">
+              {role === "teacher" ? "AI-Curated Question Bank" : "Practice under real conditions"}
+            </h1>
+            {role === "teacher" && (
+              <p className="mt-2 text-sm text-white/50">
+                Select an official past paper below. The AI will read the paper and pull out the most interesting, complex, and curriculum-aligned questions to help you build your upcoming tests and memos.
+              </p>
+            )}
           </div>
 
         <div>

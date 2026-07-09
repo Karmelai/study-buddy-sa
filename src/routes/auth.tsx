@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
+import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
 
 type Search = { mode?: "login" | "signup" };
@@ -27,6 +29,8 @@ function Auth() {
   const [grade, setGrade] = useState(10);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [role, setRole] = useState<"student" | "teacher">("student");
+  const [selectedAvatarId, setSelectedAvatarId] = useState<AvatarId>(DEFAULT_AVATAR_ID);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const subjectConfig = useMemo(() => getSubjectConfigForGrade(grade), [grade]);
 
@@ -59,7 +63,7 @@ function Auth() {
         setError("Passwords do not match.");
         return;
       }
-      const res = signup(email, password, grade, studentName, selectedSubjects, role);
+      const res = signup(email, password, grade, studentName, selectedSubjects, role, selectedAvatarId);
       if (!res.ok) return setError(res.error ?? "Could not sign up.");
     } else {
       const res = login(email, password);
@@ -68,13 +72,62 @@ function Auth() {
     navigate({ to: "/study" });
   };
 
+  const selectedAvatar = getAvatarOption(selectedAvatarId);
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6 pt-16 pb-10 sm:pt-20">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <h1 className="text-2xl font-semibold tracking-wide">KARMEL</h1>
           <p className="text-white/50 text-sm mt-2">Your AI study coach</p>
         </div>
+
+        {isSignup ? (
+          <div className="mb-6 flex flex-col items-center">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsAvatarPickerOpen((prev) => !prev)}
+              className="group flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition-all duration-200 hover:scale-105 hover:border-white/30 hover:bg-white/10"
+              aria-label="Choose avatar"
+            >
+              {selectedAvatarId === DEFAULT_AVATAR_ID ? (
+                <Plus size={22} className="text-white/70" />
+              ) : (
+                <img src={selectedAvatar.image} alt={selectedAvatar.label} className="h-full w-full object-cover" />
+              )}
+            </button>
+
+            {isAvatarPickerOpen ? (
+              <div className="absolute left-1/2 top-full z-20 mt-3 w-72 -translate-x-1/2 rounded-2xl border border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/50">
+                <p className="mb-3 text-center text-[11px] uppercase tracking-[0.25em] text-white/40">Choose your avatar</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {AVATAR_OPTIONS.map((option) => {
+                    const isSelected = selectedAvatarId === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAvatarId(option.id);
+                          setIsAvatarPickerOpen(false);
+                        }}
+                        className={`flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border transition-all duration-200 ${
+                          isSelected ? "border-white/80" : "border-white/10 hover:border-white/30"
+                        }`}
+                        aria-label={option.label}
+                      >
+                        <img src={option.image} alt={option.label} className="h-full w-full object-cover" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+            <p className="mt-3 text-[11px] uppercase tracking-[0.25em] text-white/40">Tap to pick an avatar</p>
+          </div>
+        ) : null}
 
         <div className="flex border border-white/10 rounded-lg p-1 mb-8 text-sm">
           <button

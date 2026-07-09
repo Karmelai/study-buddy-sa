@@ -68,6 +68,21 @@ export default function ChatInterface({
           ? `Let's dive into some practice questions on ${subject}. Ready?`
           : "Let's do some practice questions. Ready?";
         break;
+      case "practice_test":
+        starterMessage = subject
+          ? `I can help you with either practice questions or a quick knowledge check for ${subject}. Which would you like to do first?`
+          : "I can help you with either practice questions or a quick knowledge check. Which would you like to do first?";
+        break;
+      case "guided_study":
+        starterMessage = subject
+          ? `Let's study ${subject} step by step. What chapter or topic would you like to start with?`
+          : "Let's study step by step. What chapter or topic would you like to start with?";
+        break;
+      case "pat_help":
+        starterMessage = subject
+          ? `I can help you plan, structure, and improve your PAT for ${subject}. What task or rubric would you like help with?`
+          : "I can help you plan, structure, and improve your PAT. What task or rubric would you like help with?";
+        break;
       case "summarize":
         starterMessage = subject
           ? `Ready to summarize notes on ${subject}? What topic?`

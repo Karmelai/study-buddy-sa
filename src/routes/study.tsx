@@ -12,8 +12,9 @@ export const Route = createFileRoute("/study")({
 
 const STUDENT_MODES = [
   { id: "explain", label: "Explain a Topic", desc: "Break down any topic step-by-step." },
-  { id: "practice", label: "Practice Questions", desc: "Try guided practice with feedback." },
-  { id: "quiz", label: "Test My Knowledge", desc: "Short quiz with instant marking." },
+  { id: "practice_test", label: "Practice & Test", desc: "Choose practice questions or a quick knowledge check." },
+  { id: "guided_study", label: "Guided Study Session", desc: "Study actively with an interactive AI partner that breaks down chapters step-by-step." },
+  { id: "pat_help", label: "Help with your PAT", desc: "Get guidance, structure planning, and rubric checks for your Practical Assessment Task." },
   { id: "summarize", label: "Summarize Key Notes", desc: "Concise study notes on a topic." },
   { id: "revision", label: "Revision Plan", desc: "Personalized plan up to exam day." },
 ];
@@ -82,7 +83,9 @@ function Study() {
           <h1 className="text-2xl mt-1">{savedSubjects.length > 0 ? "Your subjects" : "Choose a subject"}</h1>
           <p className="mt-2 text-sm text-white/50">
             {savedSubjects.length > 0
-              ? "Choose the subject you want to study"
+              ? role === "teacher"
+                ? "Select a subject to build resources and guide your students."
+                : "Choose the subject you want to study"
               : subjectConfig.type === "senior"
                 ? "These grades follow the senior phase compulsory subject list."
                 : "Choose the subjects that apply to your learner."}

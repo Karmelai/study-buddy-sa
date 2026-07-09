@@ -1,6 +1,6 @@
 // Change these to switch providers/models later.
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.1-flash-lite-preview";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };

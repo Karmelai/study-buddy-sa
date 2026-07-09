@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
 
 export type Role = "student" | "teacher";
 
@@ -20,6 +21,7 @@ export type User = {
   studentName: string;
   subjects: string[];
   role: Role;
+  avatarId: AvatarId;
 };
 
 type State = {
@@ -29,14 +31,16 @@ type State = {
   grade: number;
   subjects: string[];
   role: Role;
+  avatarId: AvatarId;
   users: User[];
   lastSubject: string | null;
   lastMode: string | null;
   activities: Activity[];
-  signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role) => { ok: boolean; error?: string };
+  signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId) => { ok: boolean; error?: string };
   login: (email: string, password: string) => { ok: boolean; error?: string };
   logout: () => void;
   setStudent: (name: string, grade: number) => void;
+  setAvatar: (avatarId: AvatarId) => void;
   setSubjects: (subjects: string[]) => void;
   setLast: (subject: string, mode: string) => void;
   addActivity: (a: Activity) => void;
@@ -58,11 +62,12 @@ export const useKarmelStore = create<State>()(
       grade: 10,
       subjects: [],
       role: "student",
+      avatarId: DEFAULT_AVATAR_ID,
       users: [],
       lastSubject: null,
       lastMode: null,
       activities: [],
-      signup: (email, password, grade, studentName, subjects, role) => {
+      signup: (email, password, grade, studentName, subjects, role, avatarId) => {
         const e = email.trim().toLowerCase();
         if (get().users.some((u) => u.email === e)) {
           return { ok: false, error: "An account with that email already exists." };
@@ -70,7 +75,8 @@ export const useKarmelStore = create<State>()(
         const name = normalizeName(studentName ?? "");
         const selectedSubjects = (subjects ?? []).filter(Boolean);
         const userRole: Role = role ?? "student";
-        const user: User = { email: e, password, grade, studentName: name, subjects: selectedSubjects, role: userRole };
+        const selectedAvatarId = avatarId ?? DEFAULT_AVATAR_ID;
+        const user: User = { email: e, password, grade, studentName: name, subjects: selectedSubjects, role: userRole, avatarId: selectedAvatarId };
         set((s) => ({
           users: [...s.users, user],
           isAuthed: true,
@@ -79,6 +85,7 @@ export const useKarmelStore = create<State>()(
           studentName: name,
           subjects: selectedSubjects,
           role: userRole,
+          avatarId: selectedAvatarId,
         }));
         return { ok: true };
       },
@@ -95,11 +102,26 @@ export const useKarmelStore = create<State>()(
           studentName: normalizeName(user.studentName ?? ""),
           subjects: user.subjects ?? [],
           role: user.role ?? "student",
+          avatarId: user.avatarId ?? DEFAULT_AVATAR_ID,
         });
         return { ok: true };
       },
       logout: () => set({ isAuthed: false, email: null }),
-      setStudent: (studentName, grade) => set({ studentName, grade }),
+      setStudent: (studentName, grade) =>
+        set((s) => ({
+          studentName,
+          grade,
+          users: s.email
+            ? s.users.map((user) => (user.email === s.email ? { ...user, studentName, grade } : user))
+            : s.users,
+        })),
+      setAvatar: (avatarId) =>
+        set((s) => ({
+          avatarId,
+          users: s.email
+            ? s.users.map((user) => (user.email === s.email ? { ...user, avatarId } : user))
+            : s.users,
+        })),
       setSubjects: (subjects) => {
         const nextSubjects = subjects.filter(Boolean);
         set((s) => ({
