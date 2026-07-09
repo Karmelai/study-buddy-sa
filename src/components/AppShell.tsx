@@ -43,6 +43,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
   const updatePrivacySettings = useKarmelStore((s) => s.updatePrivacySettings);
   const updateUserPresence = useKarmelStore((s) => s.updateUserPresence);
+  const markOffline = useKarmelStore((s) => s.markOffline);
   const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
   const friendsList = useKarmelStore((s) => s.friendsList);
   const setStudent = useKarmelStore((s) => s.setStudent);
@@ -156,6 +157,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
       window.removeEventListener("keydown", registerActivity, true);
     };
   }, [isAuthed, userId, updateUserPresence]);
+
+  useEffect(() => {
+    if (!isAuthed || !userId) return;
+    if (typeof window === "undefined") return;
+
+    const goOffline = () => {
+      void markOffline();
+    };
+
+    window.addEventListener("pagehide", goOffline);
+    window.addEventListener("beforeunload", goOffline);
+    window.addEventListener("offline", goOffline);
+
+    return () => {
+      window.removeEventListener("pagehide", goOffline);
+      window.removeEventListener("beforeunload", goOffline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [isAuthed, userId, markOffline]);
 
   useEffect(() => {
     if (!isAuthed || !userId) return;

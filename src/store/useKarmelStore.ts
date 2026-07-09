@@ -110,6 +110,7 @@ type State = {
   updatePrivacySettings: (isPublic: boolean) => Promise<{ ok: boolean; error?: string }>;
   refreshNetworkData: () => Promise<void>;
   updateUserPresence: () => Promise<void>;
+  markOffline: () => Promise<void>;
 };
 
 const normalizeName = (value: string) => {
@@ -165,6 +166,17 @@ const syncProfileToSupabase = async (userId: string | null, updates: Record<stri
   const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
   if (error) {
     console.error("Supabase profile update failed", error);
+  }
+};
+
+const OFFLINE_STALE_OFFSET_MS = 20 * 60 * 1000 + 60 * 1000;
+
+const markOfflineInSupabase = async (userId: string | null) => {
+  if (!userId) return;
+  const staleTimestamp = new Date(Date.now() - OFFLINE_STALE_OFFSET_MS).toISOString();
+  const { error } = await supabase.from("profiles").update({ last_seen_at: staleTimestamp }).eq("id", userId);
+  if (error) {
+    console.error("markOfflineInSupabase failed", error);
   }
 };
 
@@ -530,6 +542,9 @@ export const useKarmelStore = create<State>()(
         if (error) {
           console.error("updateUserPresence failed", error);
         }
+      },
+      markOffline: async () => {
+        await markOfflineInSupabase(get().userId);
       },
       setStudent: (studentName, grade) => {
         const currentState = get();
