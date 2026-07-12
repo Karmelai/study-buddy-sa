@@ -3,11 +3,29 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Check, Menu, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
+import { useTheme, type Theme } from "@/hooks/use-theme";
 import ProfileView from "./ProfileView";
+import SettingsAccordion from "./SettingsAccordion";
 
 const PROFILE_SETTINGS_KEY = "karmel-profile-settings";
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const GRADE_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const STANDARD_THEMES: Theme[] = ["default", "high-contrast", "light", "purple", "midnight", "ocean", "sunset", "springbok"];
+const DYNAMIC_THEMES: Theme[] = ["aurora", "glassmorphism", "synthwave", "stardust"];
+const THEME_LABELS: Record<Theme, string> = {
+  default: "Default",
+  "high-contrast": "High Contrast",
+  light: "Light",
+  purple: "Purple",
+  midnight: "Midnight",
+  ocean: "Ocean",
+  sunset: "Sunset",
+  springbok: "Springbok",
+  aurora: "Aurora",
+  glassmorphism: "Glassmorphism",
+  synthwave: "Synthwave",
+  stardust: "Stardust",
+};
 const formatRemainingTime = (ms: number) => {
   if (ms <= 0) return "";
   const days = Math.floor(ms / (1000 * 60 * 60 * 24));
@@ -19,6 +37,7 @@ const formatRemainingTime = (ms: number) => {
 };
 
 export default function AppShell({ children }: { children: ReactNode }) {
+  const { theme, setTheme } = useTheme();
   const isAuthed = useKarmelStore((s) => s.isAuthed);
   const userId = useKarmelStore((s) => s.userId);
   const logout = useKarmelStore((s) => s.logout);
@@ -160,26 +179,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (!isAuthed) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-black text-white flex flex-col">
-      <header className="sticky top-0 z-30 shrink-0 border-b border-white/10 bg-black/95 backdrop-blur">
+    <div className="h-screen overflow-hidden bg-background text-foreground flex flex-col">
+      <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 backdrop-blur">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="font-semibold tracking-wide text-lg">
             KARMEL
           </Link>
-          <nav className="hidden gap-4 text-sm text-white/60 items-center sm:flex">
-            <Link to="/" activeProps={{ className: "text-white" }} activeOptions={{ exact: true }}>
+          <nav className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
+            <Link to="/" activeProps={{ className: "text-foreground" }} activeOptions={{ exact: true }}>
               Home
             </Link>
-            <Link to="/study" activeProps={{ className: "text-white" }}>
+            <Link to="/study" activeProps={{ className: "text-foreground" }}>
               Study
             </Link>
-            <Link to="/timer" activeProps={{ className: "text-white" }}>
+            <Link to="/timer" activeProps={{ className: "text-foreground" }}>
               Timer
             </Link>
-            <Link to="/papers" activeProps={{ className: "text-white" }}>
+            <Link to="/papers" activeProps={{ className: "text-foreground" }}>
               Past Papers
             </Link>
-            <Link to="/friends" activeProps={{ className: "text-white" }} className="relative">
+            <Link to="/friends" activeProps={{ className: "text-foreground" }} className="relative">
               Friends
               {pendingIncomingRequests.length > 0 ? (
                 <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-black">
@@ -192,7 +211,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setIsMobileNavOpen((open) => !open)}
-              className="inline-flex h-10 w-10 items-center justify-center text-white transition hover:text-white/80 sm:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center text-foreground transition hover:text-muted-foreground sm:hidden"
               aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-haspopup="menu"
               aria-expanded={isMobileNavOpen}
@@ -202,26 +221,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setIsProfilePageOpen(true)}
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-card text-foreground transition hover:bg-accent"
               aria-label="Open profile"
             >
               {avatarId === DEFAULT_AVATAR_ID ? (
-                <span className="text-[11px] uppercase tracking-[0.25em] text-white/70">ME</span>
+                <span className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">ME</span>
               ) : (
                 <img src={selectedAvatar.image} alt={selectedAvatar.label} className="h-full w-full object-cover" />
               )}
             </button>
             <div
-              className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
+              className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-border bg-popover/95 text-popover-foreground shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
                 isMobileNavOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
               }`}
               role="menu"
               aria-label="Mobile navigation"
             >
-              <div className="border-b border-white/10 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.25em] text-white/40">Navigate</p>
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Navigate</p>
               </div>
-              <div className="flex flex-col p-2 text-sm text-white/80">
+              <div className="flex flex-col p-2 text-sm text-muted-foreground">
                 <Link
                   to="/"
                   activeProps={{ className: "bg-white/10 text-white" }}
@@ -303,19 +322,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
         }`}
       >
         <div
-          className={`mx-auto w-full max-w-xl rounded-3xl border border-white/10 bg-zinc-950/95 p-5 shadow-2xl shadow-black/50 transition-all duration-300 sm:p-6 ${
+          className={`mx-auto w-full max-w-xl rounded-3xl border border-border bg-popover/95 p-5 text-popover-foreground shadow-2xl shadow-black/50 transition-all duration-300 sm:p-6 ${
             isProfileOpen ? "translate-y-0 scale-100" : "translate-y-4 scale-95"
           }`}
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/40">Profile settings</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Profile settings</p>
               <h2 className="mt-2 text-xl font-semibold sm:text-2xl">Personalise your workspace</h2>
             </div>
             <button
               type="button"
               onClick={() => setIsProfileOpen(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-accent hover:text-foreground"
               aria-label="Close profile settings"
             >
               <X size={16} />
@@ -323,71 +342,87 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="mt-6 space-y-5 sm:mt-7">
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-medium sm:text-lg">Name customization</h3>
-                  <p className="mt-1 text-sm text-white/50">Update how your name appears across the dashboard.</p>
-                </div>
-                <div className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/50">
-                  {isNameCooldownActive ? "Locked" : "Open"}
-                </div>
-              </div>
-
-              <label className="mt-4 block text-sm text-white/60">
+            <SettingsAccordion
+              title="Name customization"
+              description="Update how your name appears across the dashboard."
+              trailing={<span className="rounded-full border border-border bg-background px-3 py-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{isNameCooldownActive ? "Locked" : "Open"}</span>}
+            >
+              <label className="block text-sm text-muted-foreground">
                 Display name
                 <input
                   type="text"
                   value={draftName}
                   onChange={(event) => setDraftName(event.target.value)}
                   disabled={isNameCooldownActive}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   placeholder="Enter your name"
                 />
               </label>
               {nameCooldownMessage ? (
-                <p className="mt-3 text-sm text-white/55">{nameCooldownMessage}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{nameCooldownMessage}</p>
               ) : null}
-            </section>
+            </SettingsAccordion>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-medium sm:text-lg">Grade selection</h3>
-                  <p className="mt-1 text-sm text-white/50">Adjust the grade used for your subject options and study guidance.</p>
-                </div>
-                <div className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/50">
-                  {isGradeCooldownActive ? "Locked" : "Open"}
-                </div>
+            <SettingsAccordion title="Appearance" description="Choose the colour theme for your study workspace.">
+              <div className="space-y-5">
+                {[
+                  { label: "Standard Themes", options: STANDARD_THEMES },
+                  { label: "Dynamic Styles", options: DYNAMIC_THEMES },
+                ].map((group) => (
+                  <div key={group.label}>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{group.label}</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {group.options.map((option) => {
+                  const selected = theme === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setTheme(option)}
+                      className={`rounded-xl border px-3 py-3 text-left text-sm transition ${
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground hover:bg-accent"
+                      }`}
+                    >
+                      <span className="block font-medium">{THEME_LABELS[option]}</span>
+                      {selected ? <span className="mt-1 block text-xs opacity-80">Active</span> : null}
+                    </button>
+                  );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </SettingsAccordion>
 
-              <label className="mt-4 block text-sm text-white/60">
+            <SettingsAccordion
+              title="Grade selection"
+              description="Adjust the grade used for your subject options and study guidance."
+              trailing={<span className="rounded-full border border-border bg-background px-3 py-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{isGradeCooldownActive ? "Locked" : "Open"}</span>}
+            >
+              <label className="block text-sm text-muted-foreground">
                 Grade
                 <select
                   value={draftGrade}
                   onChange={(event) => setDraftGrade(Number(event.target.value))}
                   disabled={isGradeCooldownActive}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white focus:border-white/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground focus:border-ring focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {Array.from({ length: 5 }, (_, index) => 8 + index).map((value) => (
-                    <option key={value} value={value} className="bg-black text-white">
+                    <option key={value} value={value}>
                       Grade {value}
                     </option>
                   ))}
                 </select>
               </label>
               {gradeCooldownMessage ? (
-                <p className="mt-3 text-sm text-white/55">{gradeCooldownMessage}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{gradeCooldownMessage}</p>
               ) : null}
-            </section>
+            </SettingsAccordion>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div>
-                <h3 className="text-base font-medium sm:text-lg">Avatar selection</h3>
-                <p className="mt-1 text-sm text-white/50">Choose a character that will appear in the header and your profile.</p>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-3">
+            <SettingsAccordion title="Avatar selection" description="Choose a character that will appear in the header and your profile.">
+              <div className="grid grid-cols-3 gap-3">
                 {AVATAR_OPTIONS.map((option) => {
                   const isSelected = draftAvatarId === option.id;
                   return (
@@ -396,12 +431,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => setDraftAvatarId(option.id)}
                       className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border transition-all duration-200 ${
-                        isSelected ? "border-white/80" : "border-white/10 hover:border-white/30"
+                        isSelected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/60"
                       }`}
                       aria-label={option.label}
                     >
                       {option.id === DEFAULT_AVATAR_ID ? (
-                        <span className="text-[10px] uppercase tracking-[0.25em] text-white/70">Default</span>
+                        <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Default</span>
                       ) : (
                         <img src={option.image} alt={option.label} className="h-full w-full object-cover" />
                       )}
@@ -409,15 +444,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   );
                 })}
               </div>
-            </section>
+            </SettingsAccordion>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div>
-                <h3 className="text-base font-medium sm:text-lg">Subject selection manager</h3>
-                <p className="mt-1 text-sm text-white/50">Choose which subjects appear in your active study tools.</p>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <SettingsAccordion title="Subject selection manager" description="Choose which subjects appear in your active study tools.">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {availableSubjects.map((subject) => {
                   const selected = draftSubjects.includes(subject);
                   return (
@@ -427,8 +457,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                       onClick={() => toggleSubject(subject)}
                       className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition ${
                         selected
-                          ? "border-white/20 bg-white text-black"
-                          : "border-white/10 bg-black/30 text-white/80 hover:border-white/20"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground hover:border-primary/60 hover:bg-accent"
                       }`}
                     >
                       <span>{subject}</span>
@@ -437,22 +467,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   );
                 })}
               </div>
-            </section>
+            </SettingsAccordion>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div>
-                <h3 className="text-base font-medium sm:text-lg">Account Privacy</h3>
-                <p className="mt-1 text-sm text-white/50">Control whether other students can find you in the study network.</p>
-              </div>
-
-              <div className="mt-4 space-y-2">
+            <SettingsAccordion title="Account privacy" description="Control whether other students can find you in the study network.">
+              <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() => setDraftIsPublic(true)}
                   className={`w-full text-left flex items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
                     draftIsPublic
-                      ? "border-white/20 bg-white text-black"
-                      : "border-white/10 bg-black/30 text-white/80 hover:border-white/20"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground hover:border-primary/60 hover:bg-accent"
                   }`}
                 >
                   <div>
@@ -467,8 +492,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   onClick={() => setDraftIsPublic(false)}
                   className={`w-full text-left flex items-center justify-between rounded-xl border px-4 py-3 text-sm transition ${
                     !draftIsPublic
-                      ? "border-white/20 bg-white text-black"
-                      : "border-white/10 bg-black/30 text-white/80 hover:border-white/20"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground hover:border-primary/60 hover:bg-accent"
                   }`}
                 >
                   <div>
@@ -478,7 +503,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   {!draftIsPublic ? <Check size={16} /> : null}
                 </button>
               </div>
-            </section>
+            </SettingsAccordion>
           </div>
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -492,7 +517,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={handleApplyProfile}
-              className="rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition hover:bg-zinc-200"
+              className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               Apply Changes
             </button>

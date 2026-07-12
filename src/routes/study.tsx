@@ -49,7 +49,7 @@ function Study() {
     return (
       <AppShell>
         <div className="flex-1 min-h-0 flex flex-col max-w-3xl w-full mx-auto overflow-hidden">
-          <div className="shrink-0 px-6 py-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
             <div>
               <p className="text-xs uppercase tracking-widest text-white/40">{subject}</p>
               <h1 className="text-lg">{modeLabel}</h1>
@@ -99,8 +99,8 @@ function Study() {
                   onClick={() => setSubject(s)}
                   className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
                     subject === s
-                      ? "border-white bg-white text-black"
-                      : "border-white/10 hover:border-white/40"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card hover:border-primary/60 hover:bg-accent"
                   }`}
                 >
                   {s}
@@ -115,8 +115,8 @@ function Study() {
                   onClick={() => handleSubjectSelect(s)}
                   className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
                     subject === s
-                      ? "border-white bg-white text-black"
-                      : "border-white/10 hover:border-white/40"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card hover:border-primary/60 hover:bg-accent"
                   }`}
                 >
                   {s}
@@ -140,7 +140,7 @@ function Study() {
                 <button
                   key={m.id}
                   onClick={() => setMode(m.id)}
-                  className="text-left border border-white/10 hover:border-white/40 rounded-2xl p-5 transition"
+                  className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/60 hover:bg-accent"
                 >
                   <h3 className="font-medium">{m.label}</h3>
                   <p className="text-white/50 text-sm mt-1">{m.desc}</p>

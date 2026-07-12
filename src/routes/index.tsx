@@ -59,24 +59,24 @@ function Home() {
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Link to="/study" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
+          <Link to="/study" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
             <BookOpen className="text-white/80" />
             <h3 className="mt-4 font-medium">{studyTitle}</h3>
             <p className="text-white/50 text-sm mt-1">{studyText}</p>
           </Link>
-          <Link to="/timer" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
+          <Link to="/timer" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
             <Clock3 className="text-white/80" />
             <h3 className="mt-4 font-medium">Study Timer</h3>
             <p className="text-white/50 text-sm mt-1">Run a focused session with XP and leveling.</p>
           </Link>
-          <Link to="/papers" className="group border border-white/10 hover:border-white/40 rounded-2xl p-6 transition">
+          <Link to="/papers" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
             <FileText className="text-white/80" />
             <h3 className="mt-4 font-medium">{papersTitle}</h3>
             <p className="text-white/50 text-sm mt-1">{papersText}</p>
           </Link>
           <Link
             to="/friends"
-            className="group text-left border border-white/10 hover:border-white/40 rounded-2xl p-6 transition"
+            className="group rounded-2xl border border-border bg-card p-6 text-left transition hover:border-primary/60 hover:bg-accent"
           >
             <Users className="text-white/80" />
             <h3 className="mt-4 font-medium">Friends and study</h3>
@@ -85,7 +85,7 @@ function Home() {
         </section>
 
         {recommendation && (
-          <section className="rounded-2xl border border-white/10 p-6">
+          <section className="rounded-2xl border border-border bg-card p-6">
             <p className="text-xs uppercase tracking-widest text-white/40">Recommended for you</p>
             <h3 className="mt-2 text-lg">
               Revise <span className="text-white">{recommendation.weakTopics?.[0]}</span> - you struggled last time in{" "}

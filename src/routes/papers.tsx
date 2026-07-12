@@ -99,7 +99,7 @@ function Papers() {
     return (
       <AppShell>
         <div className="flex-1 min-h-0 flex flex-col max-w-3xl w-full mx-auto">
-          <div className="shrink-0 px-6 py-4 border-b border-white/10 flex items-center justify-between gap-4">
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-4">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-widest text-white/40">
                 Grade {activePaper.grade} · {activePaper.subject} · Guided Study
@@ -137,7 +137,9 @@ function Papers() {
                   key={item}
                   onClick={() => selectSubject(item)}
                   className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
-                    subject === item ? "border-white bg-white text-black" : "border-white/10 hover:border-white/40"
+                    subject === item
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card hover:border-primary/60 hover:bg-accent"
                   }`}
                 >
                   {item}
@@ -159,7 +161,7 @@ function Papers() {
                   <button
                     key={paper.id}
                     onClick={() => startGuidedStudy(paper)}
-                    className="text-left border border-white/10 hover:border-white/40 rounded-xl px-4 py-3 text-sm transition"
+                    className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm transition hover:border-primary/60 hover:bg-accent"
                   >
                     {getPaperLabel(paper)}
                   </button>
