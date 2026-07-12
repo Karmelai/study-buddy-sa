@@ -26,6 +26,9 @@ const json = (body: unknown, init: ResponseInit = {}) =>
 const isSafeStoragePath = (path: string) =>
   Boolean(path) && !path.startsWith("/") && !path.includes("..") && !path.includes("\\");
 
+const toTrimmedString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
 const toBase64 = (bytes: Uint8Array) => {
   let binary = "";
   const chunkSize = 0x8000;
@@ -71,12 +74,12 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     const payload = await req.json() as GeminiRequestBody;
-    const prompt = payload.prompt?.trim();
+    const prompt = toTrimmedString(payload.prompt);
     if (!prompt) return json({ error: "prompt is required." }, { status: 400 });
 
     const guidedMode = payload.activeStudyMode === "guided";
-    const pdfPath = payload.pdf_storage_path?.trim() ?? "";
-    const memoPath = payload.memo_storage_path?.trim() ?? "";
+    const pdfPath = toTrimmedString(payload.pdf_storage_path);
+    const memoPath = toTrimmedString(payload.memo_storage_path);
     const documentParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
 
     if (guidedMode) {

@@ -106,17 +106,23 @@ export async function callAI(
     return text;
   }
 
-  const { data, error } = await supabase.functions.invoke<{ text?: string }>("gemini-proxy", {
-    body: { prompt },
+  const { data: sessionData } = await supabase.auth.getSession();
+  const response = await fetch(`${supabaseUrl}/functions/v1/gemini-proxy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseAnonKey,
+      ...(sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+    },
+    body: JSON.stringify({ prompt }),
   });
 
-  if (error) {
-    throw new Error(error.message || "AI request failed.");
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error ?? "AI request failed.");
   }
 
-  const text = typeof data === "string"
-    ? data
-    : data?.text ?? "";
+  const text = await readGeminiStream(response);
 
   if (!text.trim()) {
     throw new Error("AI request returned an empty response.");
