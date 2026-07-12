@@ -7,10 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import AppRuntime from "@/components/AppRuntime";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -39,9 +38,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -79,14 +75,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "KARMEL | AI Study Coach for South African Learners" },
+      {
+        name: "description",
+        content:
+          "KARMEL is an AI-powered study coach for South African high school learners, with guided study support, focus timers, past-paper practice, and study communities.",
+      },
+      { name: "author", content: "KARMEL" },
+      {
+        name: "keywords",
+        content:
+          "KARMEL, study app, AI study coach, South African learners, high school study help, past papers, study timer",
+      },
+      { name: "robots", content: "index, follow" },
+      { name: "theme-color", content: "#09090b" },
+      { property: "og:title", content: "KARMEL | Your AI Study Coach" },
+      {
+        property: "og:description",
+        content:
+          "Study smarter with guided AI support, focused study sessions, past-paper practice, and a community built for South African learners.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "KARMEL | Your AI Study Coach" },
+      {
+        name: "twitter:description",
+        content: "AI-powered study support, focus tools, and past-paper practice for South African learners.",
+      },
     ],
     links: [
       {

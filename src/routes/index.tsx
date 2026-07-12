@@ -6,8 +6,23 @@ import { BookOpen, Clock3, FileText, Users } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "KARMEL - Your Study Coach" },
-      { name: "description", content: "AI study coach for South African high school students." },
+      { title: "KARMEL | AI Study Coach for South African Learners" },
+      {
+        name: "description",
+        content:
+          "KARMEL helps South African high school learners study with AI guidance, focused study timers, past-paper practice, and a supportive study community.",
+      },
+      { property: "og:title", content: "KARMEL | Your AI Study Coach" },
+      {
+        property: "og:description",
+        content:
+          "Build better study habits with guided AI support, focus sessions, and past-paper practice designed for South African learners.",
+      },
+      { name: "twitter:title", content: "KARMEL | Your AI Study Coach" },
+      {
+        name: "twitter:description",
+        content: "Guided study help, focus tools, and past-paper practice for South African high school learners.",
+      },
     ],
   }),
   component: Home,
