@@ -1,17 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Check, Menu, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
-import { isRecentlySeen, PRESENCE_ONLINE_WINDOW_MS } from "@/lib/presence";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
-import { toast } from "sonner";
 import ProfileView from "./ProfileView";
 
 const PROFILE_SETTINGS_KEY = "karmel-profile-settings";
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const GRADE_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-const FRIEND_PRESENCE_POLL_MS = 20 * 1000;
-
 const formatRemainingTime = (ms: number) => {
   if (ms <= 0) return "";
   const days = Math.floor(ms / (1000 * 60 * 60 * 24));
@@ -31,16 +27,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const avatarId = useKarmelStore((s) => s.avatarId);
   const grade = useKarmelStore((s) => s.grade);
   const level = useKarmelStore((s) => s.level);
-  const isTimerRunning = useKarmelStore((s) => s.isTimerRunning);
   const subjects = useKarmelStore((s) => s.subjects);
   const is_public = useKarmelStore((s) => s.is_public);
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
   const updatePrivacySettings = useKarmelStore((s) => s.updatePrivacySettings);
-  const updateUserPresence = useKarmelStore((s) => s.updateUserPresence);
-  const markOffline = useKarmelStore((s) => s.markOffline);
-  const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
-  const tickTimer = useKarmelStore((s) => s.tickTimer);
-  const friendsList = useKarmelStore((s) => s.friendsList);
   const setStudent = useKarmelStore((s) => s.setStudent);
   const setAvatar = useKarmelStore((s) => s.setAvatar);
   const setSubjects = useKarmelStore((s) => s.setSubjects);
@@ -56,9 +46,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [presenceAlert, setPresenceAlert] = useState<{ label: string; count: number } | null>(null);
-  const seenOnlineFriendIdsRef = useRef<Set<string> | null>(null);
-  const presenceAlertTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   const availableSubjects = getSubjectConfigForGrade(grade).subjects;
   const isNameCooldownActive = Boolean(lastNameChangeTimestamp && Date.now() - lastNameChangeTimestamp < NAME_CHANGE_COOLDOWN_MS);
@@ -88,187 +75,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (!isAuthed || !userId) return;
-    if (typeof window === "undefined") return;
-
-    const inactivityLimitMs = 20 * 60 * 1000;
-    const heartbeatMs = Math.min(20 * 1000, PRESENCE_ONLINE_WINDOW_MS / 3);
-    let isIdle = false;
-    let heartbeatTimer: ReturnType<typeof window.setInterval> | null = null;
-    let inactivityTimer: ReturnType<typeof window.setTimeout> | null = null;
-
-    const clearTimers = () => {
-      if (heartbeatTimer) {
-        window.clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-      if (inactivityTimer) {
-        window.clearTimeout(inactivityTimer);
-        inactivityTimer = null;
-      }
-    };
-
-    const startHeartbeat = () => {
-      if (heartbeatTimer) return;
-      heartbeatTimer = window.setInterval(() => {
-        void updateUserPresence();
-      }, heartbeatMs);
-    };
-
-    const markIdle = () => {
-      isIdle = true;
-      if (heartbeatTimer) {
-        window.clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-    };
-
-    const resetInactivityTimer = () => {
-      if (inactivityTimer) {
-        window.clearTimeout(inactivityTimer);
-      }
-      inactivityTimer = window.setTimeout(markIdle, inactivityLimitMs);
-    };
-
-    const registerActivity = () => {
-      if (isIdle) {
-        isIdle = false;
-        startHeartbeat();
-        void updateUserPresence();
-      }
-      resetInactivityTimer();
-    };
-
-    void updateUserPresence();
-    startHeartbeat();
-    resetInactivityTimer();
-
-    window.addEventListener("click", registerActivity, true);
-    window.addEventListener("keydown", registerActivity, true);
-
-    return () => {
-      clearTimers();
-      window.removeEventListener("click", registerActivity, true);
-      window.removeEventListener("keydown", registerActivity, true);
-    };
-  }, [isAuthed, userId, updateUserPresence]);
-
-  useEffect(() => {
-    if (!isAuthed || !userId) return;
-    if (typeof window === "undefined") return;
-
-    const goOffline = () => {
-      void markOffline();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        goOffline();
-      }
-    };
-
-    window.addEventListener("pagehide", goOffline);
-    window.addEventListener("beforeunload", goOffline);
-    window.addEventListener("offline", goOffline);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("pagehide", goOffline);
-      window.removeEventListener("beforeunload", goOffline);
-      window.removeEventListener("offline", goOffline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [isAuthed, userId, markOffline]);
-
-  useEffect(() => {
-    if (!isAuthed || !isTimerRunning) return;
-    if (typeof window === "undefined") return;
-
-    const interval = window.setInterval(() => {
-      tickTimer();
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [isAuthed, isTimerRunning, tickTimer]);
-
-  useEffect(() => {
-    if (!isAuthed || !userId) return;
-    if (typeof window === "undefined") return;
-
-    let cancelled = false;
-
-    const syncPresence = async () => {
-      await refreshNetworkData();
-      if (cancelled) return;
-
-      const onlineIds = new Set(
-        useKarmelStore
-          .getState()
-          .friendsList.filter((friend) => isRecentlySeen(friend.last_seen_at))
-          .map((friend) => friend.id),
-      );
-
-      if (seenOnlineFriendIdsRef.current === null) {
-        seenOnlineFriendIdsRef.current = onlineIds;
-        return;
-      }
-
-      const previousOnlineIds = seenOnlineFriendIdsRef.current;
-      seenOnlineFriendIdsRef.current = onlineIds;
-
-      const newlyOnlineFriends = useKarmelStore
-        .getState()
-        .friendsList.filter(
-          (friend) => onlineIds.has(friend.id) && !previousOnlineIds.has(friend.id),
-        );
-
-      newlyOnlineFriends.slice(0, 3).forEach((friend) => {
-        toast(`${friend.full_name} is online`, {
-          description: "Tap to open your Friends page.",
-          duration: 4000,
-          action: {
-            label: "Open",
-            onClick: () => navigate({ to: "/friends" }),
-          },
-        });
-      });
-
-      if (newlyOnlineFriends.length > 0) {
-        const firstFriend = newlyOnlineFriends[0];
-        setPresenceAlert({
-          label: newlyOnlineFriends.length === 1 ? `${firstFriend.full_name} is online` : `${newlyOnlineFriends.length} friends are online`,
-          count: newlyOnlineFriends.length,
-        });
-        if (presenceAlertTimerRef.current) {
-          window.clearTimeout(presenceAlertTimerRef.current);
-        }
-        presenceAlertTimerRef.current = window.setTimeout(() => {
-          setPresenceAlert(null);
-        }, 4000);
-      }
-    };
-
-    void syncPresence();
-    const interval = window.setInterval(() => {
-      void syncPresence();
-    }, FRIEND_PRESENCE_POLL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [isAuthed, userId, navigate, refreshNetworkData]);
-
-  useEffect(() => {
-    return () => {
-      if (presenceAlertTimerRef.current) {
-        window.clearTimeout(presenceAlertTimerRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -316,17 +122,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
     window.localStorage.setItem(PROFILE_SETTINGS_KEY, JSON.stringify(payload));
   }, [draftName, draftSubjects, draftGrade, draftAvatarId, lastNameChangeTimestamp, lastGradeChangeTimestamp]);
-
-  useEffect(() => {
-    if (!isAuthed) {
-      seenOnlineFriendIdsRef.current = null;
-      return;
-    }
-
-    seenOnlineFriendIdsRef.current = new Set(
-      friendsList.filter((friend) => isRecentlySeen(friend.last_seen_at)).map((friend) => friend.id),
-    );
-  }, [friendsList, isAuthed]);
 
   const handleApplyProfile = () => {
     const nextName = !isNameCooldownActive && hasNameChanged ? draftName.trim() || "Student" : studentName;
@@ -416,19 +211,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <img src={selectedAvatar.image} alt={selectedAvatar.label} className="h-full w-full object-cover" />
               )}
             </button>
-            {presenceAlert ? (
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/friends" })}
-                className="inline-flex max-w-[11rem] items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-left text-xs text-emerald-200 transition hover:bg-emerald-400/15"
-                aria-label="Open friends presence"
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
-                <span className="truncate">
-                  {presenceAlert.count > 1 ? `${presenceAlert.count} online` : presenceAlert.label}
-                </span>
-              </button>
-            ) : null}
             <div
               className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
                 isMobileNavOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"

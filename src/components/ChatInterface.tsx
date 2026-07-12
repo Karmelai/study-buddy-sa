@@ -40,6 +40,8 @@ export default function ChatInterface({
   const grade = useKarmelStore((s) => s.grade);
   const studentName = useKarmelStore((s) => s.studentName);
   const role = useKarmelStore((s) => s.role);
+  const activePaper = useKarmelStore((s) => s.activePaper);
+  const activeStudyMode = useKarmelStore((s) => s.activeStudyMode);
 
   const systemContent =
     buildSystemPrompt(grade, mode, subject, studentName, role) +
@@ -137,7 +139,18 @@ export default function ChatInterface({
     setMessages(next);
     setLoading(true);
     try {
-      const reply = await callAI(next, studentName);
+      const guidedPaper =
+        mode === "pastpaper_guided" &&
+        activeStudyMode === "guided" &&
+        activePaper?.pdf_storage_path &&
+        activePaper.memo_storage_path
+          ? {
+              activeStudyMode: "guided" as const,
+              pdf_storage_path: activePaper.pdf_storage_path,
+              memo_storage_path: activePaper.memo_storage_path,
+            }
+          : undefined;
+      const reply = await callAI(next, studentName, guidedPaper);
       setMessages([...next, { role: "assistant", content: reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");

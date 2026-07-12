@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { X, Settings } from "lucide-react";
-import { isRecentlySeen } from "@/lib/presence";
 import { useKarmelStore, type SocialProfile, type UserProfile } from "@/store/useKarmelStore";
 import { DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { supabase } from "@/lib/supabase";
@@ -103,6 +102,7 @@ export default function ProfileView({
   const currentUserSubjects = useKarmelStore((s) => s.subjects);
   const currentUserLevel = useKarmelStore((s) => s.level);
   const following_count = useKarmelStore((s) => s.following_count);
+  const onlineUserIds = useKarmelStore((s) => s.onlineUserIds);
   const followUser = useKarmelStore((s) => s.followUser);
   const unfollowUser = useKarmelStore((s) => s.unfollowUser);
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
@@ -179,7 +179,7 @@ export default function ProfileView({
   const isPending = requestStatus === "pending";
   const level = isCurrentUser ? currentUserLevel : user.level ?? 1;
   const canViewSubjects = isCurrentUser || isFollowing;
-  const isOnline = isRecentlySeen(user.last_seen_at);
+  const isOnline = onlineUserIds.includes(user.id);
 
   const openConnections = (view: ConnectionView) => {
     setConnectionView(view);

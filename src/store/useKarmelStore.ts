@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
-import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export type Role = "student" | "teacher";
 export type TimerMode = "study" | "break";
@@ -40,6 +42,23 @@ type ProfileRow = {
   is_public?: boolean | null;
   followers_count?: number | null;
   following_count?: number | null;
+};
+
+/** A row returned from the public.past_papers table. */
+export type PastPaper = {
+  id: string;
+  grade: number;
+  subject: string;
+  title?: string | null;
+  paper_title?: string | null;
+  year?: number | null;
+  session?: string | null;
+  month?: string | null;
+  paper_number?: number | null;
+  file_path?: string | null;
+  pdf_storage_path?: string | null;
+  memo_storage_path?: string | null;
+  [key: string]: unknown;
 };
 
 export type UserProfile = {
@@ -82,6 +101,8 @@ type State = {
   is_public: boolean;
   followers_count: number;
   following_count: number;
+  onlineUserIds: string[];
+  notifiedOnlineUserIds: string[];
   isTimerRunning: boolean;
   timerMode: TimerMode;
   studyDurationMinutes: number;
@@ -93,6 +114,8 @@ type State = {
   users: User[];
   lastSubject: string | null;
   lastMode: string | null;
+  activePaper: PastPaper | null;
+  activeStudyMode: string | null;
   activities: Activity[];
   searchResults: UserProfile[];
   isSearching: boolean;
@@ -118,6 +141,8 @@ type State = {
   setAvatar: (avatarId: AvatarId) => void;
   setSubjects: (subjects: string[]) => void;
   setLast: (subject: string, mode: string) => void;
+  setActivePaper: (paper: PastPaper | null) => void;
+  setActiveStudyMode: (mode: string | null) => void;
   addActivity: (a: Activity) => void;
   searchUsers: (query: string) => Promise<void>;
   followUser: (targetId: string) => Promise<{ ok: boolean; error?: string }>;
@@ -126,8 +151,13 @@ type State = {
   unfollowUser: (targetId: string) => Promise<{ ok: boolean; error?: string }>;
   updatePrivacySettings: (isPublic: boolean) => Promise<{ ok: boolean; error?: string }>;
   refreshNetworkData: () => Promise<void>;
-  updateUserPresence: () => Promise<void>;
-  markOffline: () => Promise<void>;
+  setOnlineUserIds: (onlineUserIds: string[]) => void;
+  setNotifiedOnlineUserIds: (notifiedOnlineUserIds: string[]) => void;
+  claimOnlineNotifications: (friendIds: string[]) => string[];
+  startPresenceTracking: (
+    payload: { userId: string; username: string; fullName: string; avatarId: AvatarId },
+  ) => Promise<() => Promise<void>>;
+  stopPresenceTracking: () => Promise<void>;
 };
 
 const normalizeName = (value: string) => {
@@ -187,7 +217,6 @@ const syncProfileToSupabase = async (userId: string | null, updates: Record<stri
   }
 };
 
-const OFFLINE_STALE_OFFSET_MS = 90 * 1000 + 1000;
 const DEFAULT_STUDY_DURATION_MINUTES = 25;
 const DEFAULT_BREAK_DURATION_MINUTES = 15;
 const XP_PER_FOCUS_MINUTE = 10;
@@ -204,6 +233,13 @@ const getTimerDefaults = () => ({
   totalSecondsFocused: 0,
   lastLevelUpAt: null as number | null,
 });
+
+const dedupeIds = (ids: string[]) => [...new Set(ids.filter(Boolean))];
+
+const getPresenceState = (channel: RealtimeChannel) => {
+  const state = channel.presenceState() as Record<string, unknown[]>;
+  return Object.keys(state);
+};
 
 const applyXpProgression = (currentLevel: number, currentXp: number, xpGain: number) => {
   let nextLevel = Math.max(1, Math.floor(currentLevel));
@@ -223,40 +259,6 @@ const applyXpProgression = (currentLevel: number, currentXp: number, xpGain: num
   };
 };
 
-const markOfflineInSupabase = async (userId: string | null) => {
-  if (!userId) return;
-  const staleTimestamp = new Date(Date.now() - OFFLINE_STALE_OFFSET_MS).toISOString();
-  const { data } = await supabase.auth.getSession();
-  const accessToken = data.session?.access_token;
-
-  if (!accessToken) {
-    const { error } = await supabase.from("profiles").update({ last_seen_at: staleTimestamp }).eq("id", userId);
-    if (error) {
-      console.error("markOfflineInSupabase failed", error);
-    }
-    return;
-  }
-
-  try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
-      method: "PATCH",
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({ last_seen_at: staleTimestamp }),
-      keepalive: true,
-    });
-
-    if (!response.ok) {
-      console.error("markOfflineInSupabase failed", response.status, response.statusText);
-    }
-  } catch (error) {
-    console.error("markOfflineInSupabase failed", error);
-  }
-};
 
 const PROFILE_SELECT = "id, username, full_name, avatar_id, role, selected_subjects, grade, level, xp, is_public, followers_count, following_count";
 const PROFILE_WITH_PRESENCE_SELECT = `${PROFILE_SELECT}, last_seen_at`;
@@ -287,8 +289,20 @@ type FollowRow = {
 const getFollowRowKey = (row: Pick<FollowRow, "follower_id" | "following_id">) =>
   `${row.follower_id}-${row.following_id}`;
 
-const PRESENCE_THROTTLE_MS = 20 * 1000;
-let lastPresenceUpdateAt = 0;
+let presenceChannel: RealtimeChannel | null = null;
+let presenceChannelUserId: string | null = null;
+let presenceCleanup: (() => Promise<void>) | null = null;
+let presenceLifecycleToken = 0;
+let presenceStartQueue: Promise<void> = Promise.resolve();
+
+const queuePresenceTask = async <T>(task: () => Promise<T>) => {
+  const run = presenceStartQueue.then(task, task);
+  presenceStartQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+};
 
 const fetchProfilesByIds = async (ids: string[]) => {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
@@ -325,22 +339,14 @@ const toSocialProfile = (profile: ProfileRow, followStatus: FollowStatus, follow
 
 const loadNetworkData = async (userId: string) => {
   try {
-    console.log("🔍 FETCH RUNNING: Current User ID is:", userId);
-
     const { data: followRows, error } = await supabase
       .from("follows")
       .select(FOLLOW_SELECT)
       .eq("following_id", userId)
       .eq("status", "pending");
 
-    console.log("📋 RAW SUPABASE RESPONSE:", { data: followRows, error });
-
     if (error) {
       throw error;
-    }
-
-    if (!followRows || followRows.length === 0) {
-      console.log("⚠️ Supabase returned an empty array. Check RLS SELECT policies for follows table!");
     }
 
     const pendingRows = followRows as FollowRow[];
@@ -360,8 +366,6 @@ const loadNetworkData = async (userId: string) => {
 
       profileRows = (senderProfiles ?? []) as ProfileRow[];
     }
-
-    console.log("Step 2 - Profile data fetched:", profileRows);
 
     const [outgoingAcceptedResult, incomingAcceptedResult] = await Promise.all([
       supabase
@@ -416,6 +420,125 @@ const loadNetworkData = async (userId: string) => {
   }
 };
 
+const syncPresenceLists = (set: (partial: Partial<State> | ((state: State) => Partial<State>)) => void, onlineUserIds: string[]) => {
+  const uniqueOnlineUserIds = dedupeIds(onlineUserIds);
+  set((state) => ({
+    onlineUserIds: uniqueOnlineUserIds,
+    notifiedOnlineUserIds: state.notifiedOnlineUserIds.filter((id) => uniqueOnlineUserIds.includes(id)),
+  }));
+};
+
+const stopPresenceTracking = async () => {
+  presenceLifecycleToken += 1;
+
+  const cleanup = presenceCleanup;
+  presenceCleanup = null;
+
+  if (cleanup) {
+    await cleanup();
+    return;
+  }
+
+  if (presenceChannel) {
+    try {
+      await supabase.removeChannel(presenceChannel);
+    } catch (error) {
+      console.error("removeChannel failed", error);
+    }
+  }
+
+  presenceChannel = null;
+  presenceChannelUserId = null;
+  useKarmelStore.setState({ onlineUserIds: [] });
+};
+
+const startPresenceTracking = async (
+  set: (partial: Partial<State>) => void,
+  payload: { userId: string; username: string; fullName: string; avatarId: AvatarId },
+): Promise<() => Promise<void>> => {
+  if (!payload.userId) return async () => {};
+
+  return queuePresenceTask(async () => {
+    await stopPresenceTracking();
+
+    const existingChannels = supabase.getChannels();
+    const staleChannels = existingChannels.filter(
+      (channel) => channel.topic === "realtime:online-users" || channel.topic.endsWith(":online-users"),
+    );
+
+    await Promise.all(
+      staleChannels.map(async (channel) => {
+        try {
+          await supabase.removeChannel(channel);
+        } catch (error) {
+          console.error("removeChannel failed", error);
+        }
+      }),
+    );
+
+    const channel = supabase.channel("online-users", {
+      config: {
+        presence: {
+          key: payload.userId,
+        },
+      },
+    });
+
+    presenceChannel = channel;
+    presenceChannelUserId = payload.userId;
+    const lifecycleToken = ++presenceLifecycleToken;
+
+    const syncOnlineUsers = () => {
+      syncPresenceLists(set, getPresenceState(channel));
+    };
+
+    channel.on("presence", { event: "sync" }, syncOnlineUsers);
+    channel.on("presence", { event: "join" }, syncOnlineUsers);
+    channel.on("presence", { event: "leave" }, syncOnlineUsers);
+
+    channel.subscribe(async (status) => {
+      if (lifecycleToken !== presenceLifecycleToken) {
+        return;
+      }
+
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          user_id: payload.userId,
+          username: payload.username,
+          full_name: payload.fullName,
+          avatar_id: payload.avatarId,
+          active_at: new Date().toISOString(),
+        });
+        syncOnlineUsers();
+      }
+    });
+
+    const cleanup = async () => {
+      if (presenceChannel === channel) {
+        presenceChannel = null;
+        presenceChannelUserId = null;
+        presenceCleanup = null;
+        useKarmelStore.setState({ onlineUserIds: [] });
+      }
+
+      try {
+        await channel.untrack();
+      } catch (error) {
+        console.error("presence untrack failed", error);
+      }
+
+      try {
+        await supabase.removeChannel(channel);
+      } catch (error) {
+        console.error("removeChannel failed", error);
+      }
+    };
+
+    presenceCleanup = cleanup;
+    return cleanup;
+  });
+};
+
 const getLoggedOutState = () => ({
   isAuthed: false,
   userId: null as string | null,
@@ -433,9 +556,13 @@ const getLoggedOutState = () => ({
   is_public: true,
   followers_count: 0,
   following_count: 0,
+  onlineUserIds: [] as string[],
+  notifiedOnlineUserIds: [] as string[],
   users: [] as User[],
   lastSubject: null as string | null,
   lastMode: null as string | null,
+  activePaper: null as PastPaper | null,
+  activeStudyMode: null as string | null,
   activities: [] as Activity[],
   searchResults: [] as UserProfile[],
   isSearching: false,
@@ -462,9 +589,13 @@ export const useKarmelStore = create<State>()(
       is_public: true,
       followers_count: 0,
       following_count: 0,
+      onlineUserIds: [],
+      notifiedOnlineUserIds: [],
       users: [],
       lastSubject: null,
       lastMode: null,
+      activePaper: null,
+      activeStudyMode: null,
       activities: [],
       searchResults: [],
       isSearching: false,
@@ -577,6 +708,7 @@ export const useKarmelStore = create<State>()(
         return { ok: true };
       },
       logout: async () => {
+        await stopPresenceTracking();
         await supabase.auth.signOut();
         set({
           pendingIncomingRequests: [],
@@ -585,6 +717,8 @@ export const useKarmelStore = create<State>()(
           isAuthed: false,
           userId: null,
           email: null,
+          onlineUserIds: [],
+          notifiedOnlineUserIds: [],
           ...getTimerDefaults(),
         });
         void useKarmelStore.persist.clearStorage();
@@ -607,25 +741,32 @@ export const useKarmelStore = create<State>()(
           console.error("refreshNetworkData failed", error);
         }
       },
-      updateUserPresence: async () => {
-        const currentUserId = get().userId;
-        if (!currentUserId) return;
-
-        const now = Date.now();
-        if (now - lastPresenceUpdateAt < PRESENCE_THROTTLE_MS) return;
-        lastPresenceUpdateAt = now;
-
-        const { error } = await supabase
-          .from("profiles")
-          .update({ last_seen_at: new Date(now).toISOString() })
-          .eq("id", currentUserId);
-
-        if (error) {
-          console.error("updateUserPresence failed", error);
-        }
+      setOnlineUserIds: (onlineUserIds) => {
+        set({ onlineUserIds: dedupeIds(onlineUserIds) });
       },
-      markOffline: async () => {
-        await markOfflineInSupabase(get().userId);
+      setNotifiedOnlineUserIds: (notifiedOnlineUserIds) => {
+        set((state) => ({
+          notifiedOnlineUserIds: dedupeIds([...state.notifiedOnlineUserIds, ...notifiedOnlineUserIds]),
+        }));
+      },
+      claimOnlineNotifications: (friendIds) => {
+        const currentState = get();
+        const notifiedIds = new Set(currentState.notifiedOnlineUserIds);
+        const claimedIds = dedupeIds(friendIds).filter((id) => !notifiedIds.has(id));
+
+        if (claimedIds.length > 0) {
+          set({
+            notifiedOnlineUserIds: dedupeIds([...currentState.notifiedOnlineUserIds, ...claimedIds]),
+          });
+        }
+
+        return claimedIds;
+      },
+      startPresenceTracking: async ({ userId, username, fullName, avatarId }) => {
+        return startPresenceTracking(set, { userId, username, fullName, avatarId });
+      },
+      stopPresenceTracking: async () => {
+        await stopPresenceTracking();
       },
       setStudent: (studentName, grade) => {
         const currentState = get();
@@ -712,6 +853,7 @@ export const useKarmelStore = create<State>()(
               breakTimeLeft: currentState.breakDurationMinutes * 60,
               totalSecondsFocused: nextFocusedSeconds,
             });
+            toast("Focus block completed! Time for a break.", { duration: 10000 });
             void get().completeStudySession(nextFocusedSeconds);
             return;
           }
@@ -728,7 +870,10 @@ export const useKarmelStore = create<State>()(
           set({
             isTimerRunning: false,
             breakTimeLeft: 0,
+            studyTimeLeft: currentState.studyDurationMinutes * 60,
+            timerMode: "study",
           });
+          toast("Break over! Time to focus.", { duration: 10000 });
           return;
         }
 
@@ -801,6 +946,8 @@ export const useKarmelStore = create<State>()(
         void syncProfileToSupabase(currentState.userId, { selected_subjects: nextSubjects });
       },
       setLast: (lastSubject, lastMode) => set({ lastSubject, lastMode }),
+      setActivePaper: (activePaper) => set({ activePaper }),
+      setActiveStudyMode: (activeStudyMode) => set({ activeStudyMode }),
       addActivity: (a) =>
         set((s) => ({ activities: [a, ...s.activities].slice(0, 20) })),
       searchUsers: async (query) => {
@@ -1068,6 +1215,8 @@ export const useKarmelStore = create<State>()(
         following_count: state.following_count,
         lastSubject: state.lastSubject,
         lastMode: state.lastMode,
+        activePaper: state.activePaper,
+        activeStudyMode: state.activeStudyMode,
         activities: state.activities,
         users: state.users,
         user: state.user,
@@ -1109,15 +1258,18 @@ supabase.auth.onAuthStateChange((_event, session) => {
       }));
       useKarmelStore.setState(networkData);
     })();
-  } else {
-    useKarmelStore.setState({
-      isAuthed: false,
-      userId: null,
-      user: null,
-      email: null,
-      ...getTimerDefaults(),
-      username: "",
-      is_public: true,
+      } else {
+        void stopPresenceTracking();
+        useKarmelStore.setState({
+          isAuthed: false,
+          userId: null,
+          user: null,
+          email: null,
+          onlineUserIds: [],
+          notifiedOnlineUserIds: [],
+          ...getTimerDefaults(),
+          username: "",
+          is_public: true,
       followers_count: 0,
       following_count: 0,
       level: 1,

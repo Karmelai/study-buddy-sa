@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 import { getAvatarOption } from "@/lib/avatars";
-import { isRecentlySeen } from "@/lib/presence";
+import { formatLastSeen } from "@/lib/presence";
 import { useKarmelStore, type SocialProfile } from "@/store/useKarmelStore";
 import FriendsDiscovery from "./FriendsDiscovery";
 import ProfileView from "./ProfileView";
 
-const ProfileRow = ({ user }: { user: SocialProfile }) => {
+const ProfileRow = ({ user, isOnline }: { user: SocialProfile; isOnline: boolean }) => {
   const avatar = getAvatarOption(user.avatar_id);
-  const isOnline = isRecentlySeen(user.last_seen_at);
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
@@ -22,10 +21,14 @@ const ProfileRow = ({ user }: { user: SocialProfile }) => {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
         <p className="truncate text-xs text-white/45">{user.username}</p>
-        <p className="mt-0.5 text-xs text-white/35">
-          Grade {user.grade} • Level {user.level}
-        </p>
-        {isOnline ? <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-green-300">Online</p> : null}
+        {isOnline ? (
+          <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+            Online
+          </p>
+        ) : (
+          <p className="mt-0.5 text-xs text-white/35">{formatLastSeen(user.last_seen_at)}</p>
+        )}
       </div>
     </div>
   );
@@ -37,6 +40,7 @@ export default function FriendsHub() {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const pendingIncomingRequests = useKarmelStore((s) => s.pendingIncomingRequests);
   const friendsList = useKarmelStore((s) => s.friendsList);
+  const onlineUserIds = useKarmelStore((s) => s.onlineUserIds);
   const refreshNetworkData = useKarmelStore((s) => s.refreshNetworkData);
   const acceptFriendRequest = useKarmelStore((s) => s.acceptFriendRequest);
   const declineFriendRequest = useKarmelStore((s) => s.declineFriendRequest);
@@ -111,11 +115,8 @@ export default function FriendsHub() {
                 </div>
               ) : (
                 pendingIncomingRequests.map((user) => (
-                  <div
-                    key={user.id}
-                    className="rounded-2xl border border-white/10 bg-black/25 p-4"
-                  >
-                    <ProfileRow user={user} />
+                  <div key={user.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <ProfileRow user={user} isOnline={onlineUserIds.includes(user.id)} />
                     <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
                       <button
                         type="button"
@@ -143,7 +144,7 @@ export default function FriendsHub() {
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div>
               <h2 className="text-lg font-semibold text-white">My Friends</h2>
-              <p className="mt-1 text-sm text-white/45">Accepted connections in your study circle.</p>
+              <p className="mt-1 text-sm text-white/45">See who was last active in your study circle.</p>
             </div>
 
             <div className="mt-4 grid gap-3">
@@ -159,7 +160,7 @@ export default function FriendsHub() {
                     onClick={() => handleOpenFriendProfile(user)}
                     className="w-full text-left transition hover:opacity-90 focus:outline-none"
                   >
-                    <ProfileRow user={user} />
+                    <ProfileRow user={user} isOnline={onlineUserIds.includes(user.id)} />
                   </button>
                 ))
               )}
