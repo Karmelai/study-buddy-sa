@@ -34,8 +34,16 @@ const readGeminiStream = async (response: Response) => {
   let text = "";
 
   const consumeLine = (line: string) => {
-    if (!line.startsWith("data: ")) return;
-    const event = JSON.parse(line.slice(6));
+    if (!line.startsWith("data:")) return;
+
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") return;
+
+    const event = JSON.parse(payload);
+    if (event.error) {
+      throw new Error(event.error.message ?? "Gemini stream returned an error.");
+    }
+
     text += event.candidates?.[0]?.content?.parts
       ?.map((part: { text?: string }) => part.text ?? "")
       .join("") ?? "";
@@ -62,11 +70,16 @@ const readGeminiStream = async (response: Response) => {
 export async function callAI(
   messages: ChatMessage[],
   userName: string = "Student",
+  mode: string,
   guidedPaper?: GuidedPaperRequest,
 ): Promise<string> {
   const prompt = formatPrompt(messages, userName);
 
-  if (guidedPaper) {
+  if (mode === "pastpaper_guided") {
+    if (!guidedPaper) {
+      throw new Error("This paper is missing its PDF or memo storage path.");
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const response = await fetch(`${supabaseUrl}/functions/v1/gemini-proxy`, {
       method: "POST",
@@ -77,7 +90,9 @@ export async function callAI(
       },
       body: JSON.stringify({
         prompt,
-        ...guidedPaper,
+        activeStudyMode: guidedPaper.activeStudyMode,
+        pdf_storage_path: guidedPaper.pdf_storage_path,
+        memo_storage_path: guidedPaper.memo_storage_path,
       }),
     });
 

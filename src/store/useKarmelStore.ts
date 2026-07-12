@@ -124,6 +124,7 @@ type State = {
   signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId) => Promise<{ ok: boolean; error?: string }>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
+  reset: () => void;
   signUp: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId) => Promise<{ ok: boolean; error?: string }>;
   signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
@@ -710,19 +711,12 @@ export const useKarmelStore = create<State>()(
       logout: async () => {
         await stopPresenceTracking();
         await supabase.auth.signOut();
-        set({
-          pendingIncomingRequests: [],
-          friendsList: [],
-          user: null,
-          isAuthed: false,
-          userId: null,
-          email: null,
-          onlineUserIds: [],
-          notifiedOnlineUserIds: [],
-          ...getTimerDefaults(),
-        });
-        void useKarmelStore.persist.clearStorage();
+        get().reset();
         window.location.reload();
+      },
+      reset: () => {
+        set(getLoggedOutState());
+        void useKarmelStore.persist.clearStorage();
       },
       signUp: async (email, password, grade, studentName, subjects, role, avatarId) => get().signup(email, password, grade, studentName, subjects, role, avatarId),
       signIn: async (email, password) => get().login(email, password),
@@ -1258,25 +1252,9 @@ supabase.auth.onAuthStateChange((_event, session) => {
       }));
       useKarmelStore.setState(networkData);
     })();
-      } else {
-        void stopPresenceTracking();
-        useKarmelStore.setState({
-          isAuthed: false,
-          userId: null,
-          user: null,
-          email: null,
-          onlineUserIds: [],
-          notifiedOnlineUserIds: [],
-          ...getTimerDefaults(),
-          username: "",
-          is_public: true,
-      followers_count: 0,
-      following_count: 0,
-      level: 1,
-      xp: 0,
-      pendingIncomingRequests: [],
-      friendsList: [],
-    });
+  } else {
+    void stopPresenceTracking();
+    useKarmelStore.getState().reset();
   }
 });
 

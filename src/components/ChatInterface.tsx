@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { callAI, type ChatMessage } from "@/lib/ai";
 import { buildSystemPrompt, modeStarters } from "@/lib/prompts";
+import { supabase } from "@/lib/supabase";
 import { useKarmelStore } from "@/store/useKarmelStore";
 import { Mic, Send, Volume2 } from "lucide-react";
 
@@ -95,6 +96,9 @@ export default function ChatInterface({
           ? `Time to revise your ${subject} knowledge. Where should we start?`
           : "Time for revision. Where should we begin?";
         break;
+      case "pastpaper_guided":
+        // The guided-session effect below requests the first AI message.
+        break;
       default:
         if (mode.startsWith("teacher_")) {
           const teacherStarters: Record<string, string> = {
@@ -125,18 +129,19 @@ export default function ChatInterface({
   const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const guidedSessionStartedRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
-  const send = async () => {
-    const text = input.trim();
+  const send = useCallback(async (initialText?: string, hideUserMessage = false) => {
+    const text = (initialText ?? input).trim();
     if (!text || loading) return;
-    setInput("");
+    if (!hideUserMessage) setInput("");
     setError(null);
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(next);
+    if (!hideUserMessage) setMessages(next);
     setLoading(true);
     try {
       const guidedPaper =
@@ -150,14 +155,35 @@ export default function ChatInterface({
               memo_storage_path: activePaper.memo_storage_path,
             }
           : undefined;
-      const reply = await callAI(next, studentName, guidedPaper);
-      setMessages([...next, { role: "assistant", content: reply }]);
+      const reply = await callAI(next, studentName, mode, guidedPaper);
+      setMessages([...hideUserMessage ? messages : next, { role: "assistant", content: reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [activePaper, activeStudyMode, input, loading, messages, mode, studentName]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || cancelled) return;
+      if (mode !== "pastpaper_guided" || guidedSessionStartedRef.current) return;
+      if (messages.some((message) => message.role !== "system")) return;
+
+      guidedSessionStartedRef.current = true;
+      await send(
+        "System: Initialize the guided session. Introduce yourself as an expert tutor, read the attached past paper, and present Question 1 to start.",
+        true,
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, mode, send]);
 
   const visible = messages.filter((m) => m.role !== "system");
 
