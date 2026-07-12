@@ -136,7 +136,9 @@ export default function ChatInterface({
   }, [messages, loading]);
 
   const send = useCallback(async (initialText?: string, hideUserMessage = false) => {
-    const text = (initialText ?? input).trim();
+    // A message can be triggered externally (for example, when a guided session starts),
+    // so normalize it before trimming instead of assuming it is always a string.
+    const text = String(initialText ?? input ?? "").trim();
     if (!text || loading) return;
     if (!hideUserMessage) setInput("");
     setError(null);
@@ -374,7 +376,7 @@ export default function ChatInterface({
           </button>
           <button
             onClick={send}
-            disabled={loading || !input.trim()}
+            disabled={loading || !String(input ?? "").trim()}
             className="rounded-xl bg-white text-black h-11 w-11 flex items-center justify-center disabled:opacity-30"
           >
             <Send size={16} />
