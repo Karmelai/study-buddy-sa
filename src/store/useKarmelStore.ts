@@ -7,6 +7,12 @@ import { supabase } from "@/lib/supabase";
 
 export type Role = "student" | "teacher";
 export type TimerMode = "study" | "break";
+export type SignupEducationDetails = {
+  educationLevel?: "high_school" | "university";
+  institutionName?: string;
+  courseOfStudy?: string;
+  yearOfStudy?: string;
+};
 
 export type Activity = {
   id: string;
@@ -37,17 +43,26 @@ type ProfileRow = {
   selected_subjects?: string[] | null;
   last_seen_at?: string | null;
   grade?: number | null;
+  education_level?: "high_school" | "university" | null;
+  institution_name?: string | null;
+  course_of_study?: string | null;
+  year_of_study?: string | null;
   level?: number | null;
   xp?: number | null;
   is_public?: boolean | null;
   followers_count?: number | null;
   following_count?: number | null;
+  unlocked_journey_rewards?: string[] | null;
 };
 
 /** A row returned from the public.past_papers table. */
 export type PastPaper = {
   id: string;
   grade: number;
+  educationLevel: "high_school" | "university" | null;
+  institutionName: string | null;
+  courseOfStudy: string | null;
+  yearOfStudy: string | null;
   subject: string;
   title?: string | null;
   paper_title?: string | null;
@@ -55,6 +70,8 @@ export type PastPaper = {
   session?: string | null;
   month?: string | null;
   paper_number?: number | null;
+  durationMinutes?: number | null;
+  duration_minutes?: number | null;
   file_path?: string | null;
   pdf_storage_path?: string | null;
   memo_storage_path?: string | null;
@@ -69,11 +86,16 @@ export type UserProfile = {
   selected_subjects?: string[];
   last_seen_at?: string | null;
   grade: number;
+  education_level?: "high_school" | "university" | null;
+  institution_name?: string | null;
+  course_of_study?: string | null;
+  year_of_study?: string | null;
   level: number;
   xp: number;
   is_public: boolean;
   followers_count: number;
   following_count: number;
+  unlocked_journey_rewards?: string[];
   is_following?: boolean;
   follow_status?: FollowStatus;
 };
@@ -101,6 +123,7 @@ type State = {
   is_public: boolean;
   followers_count: number;
   following_count: number;
+  unlockedJourneyRewards: string[];
   onlineUserIds: string[];
   notifiedOnlineUserIds: string[];
   isTimerRunning: boolean;
@@ -119,16 +142,17 @@ type State = {
   activities: Activity[];
   searchResults: UserProfile[];
   isSearching: boolean;
+  searchError: string | null;
   pendingIncomingRequests: SocialProfile[];
   friendsList: SocialProfile[];
-  signup: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId) => Promise<{ ok: boolean; error?: string }>;
+  signup: (email: string, password: string, grade: number | null, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId, educationDetails?: SignupEducationDetails) => Promise<{ ok: boolean; error?: string }>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   reset: () => void;
-  signUp: (email: string, password: string, grade: number, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId) => Promise<{ ok: boolean; error?: string }>;
+  signUp: (email: string, password: string, grade: number | null, studentName?: string, subjects?: string[], role?: Role, avatarId?: AvatarId, educationDetails?: SignupEducationDetails) => Promise<{ ok: boolean; error?: string }>;
   signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
-  setStudent: (name: string, grade: number) => void;
+  setStudent: (name: string, grade?: number) => void;
   setLevel: (level: number) => void;
   setXp: (xp: number) => void;
   setTimerMode: (mode: TimerMode) => void;
@@ -139,8 +163,11 @@ type State = {
   resetTimer: () => void;
   tickTimer: () => void;
   completeStudySession: (durationSeconds: number) => Promise<void>;
-  setAvatar: (avatarId: AvatarId) => void;
+  claimJourneyReward: (rewardId: string) => Promise<{ ok: boolean; error?: string }>;
+  equipJourneyReward: (rewardId: string) => Promise<{ ok: boolean; error?: string }>;
+  setAvatar: (avatarId: AvatarId) => Promise<{ ok: boolean; error?: string }>;
   setSubjects: (subjects: string[]) => void;
+  updateAcademicProfile: (updates: { yearOfStudy?: string | null; institutionName?: string | null; courseOfStudy?: string | null; subjects?: string[] }) => Promise<{ ok: boolean; error?: string }>;
   setLast: (subject: string, mode: string) => void;
   setActivePaper: (paper: PastPaper | null) => void;
   setActiveStudyMode: (mode: string | null) => void;
@@ -189,6 +216,9 @@ const hydrateStateFromProfile = (
   const username = profile?.username?.trim() ? profile.username : `@${normalizeUsername(fullName)}`;
   const followersCount = Number(profile?.followers_count ?? 0);
   const followingCount = Number(profile?.following_count ?? 0);
+  const unlockedJourneyRewards = Array.isArray(profile?.unlocked_journey_rewards)
+    ? profile.unlocked_journey_rewards.filter((id): id is string => typeof id === "string")
+    : [];
 
   set({
     isAuthed: Boolean(fallback.userId),
@@ -196,6 +226,10 @@ const hydrateStateFromProfile = (
     user: fallback.user ?? null,
     email: fallback.email ?? null,
     grade: Number.isFinite(grade) ? grade : 10,
+    educationLevel: profile?.education_level === "high_school" || profile?.education_level === "university" ? profile.education_level : null,
+    institutionName: profile?.institution_name?.trim() || null,
+    courseOfStudy: profile?.course_of_study?.trim() || null,
+    yearOfStudy: String(profile?.year_of_study || "").trim() || null,
     level: Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1,
     xp: Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0,
     studentName: fullName,
@@ -206,6 +240,7 @@ const hydrateStateFromProfile = (
     is_public: profile?.is_public ?? true,
     followers_count: Number.isFinite(followersCount) ? followersCount : 0,
     following_count: Number.isFinite(followingCount) ? followingCount : 0,
+    unlockedJourneyRewards,
   });
 };
 
@@ -261,7 +296,7 @@ const applyXpProgression = (currentLevel: number, currentXp: number, xpGain: num
 };
 
 
-const PROFILE_SELECT = "id, username, full_name, avatar_id, role, selected_subjects, grade, level, xp, is_public, followers_count, following_count";
+const PROFILE_SELECT = "id, username, full_name, avatar_id, role, selected_subjects, grade, education_level, institution_name, course_of_study, year_of_study, level, xp, is_public, followers_count, following_count, unlocked_journey_rewards";
 const PROFILE_WITH_PRESENCE_SELECT = `${PROFILE_SELECT}, last_seen_at`;
 
 const loadLiveProfile = async (userId: string) => {
@@ -292,6 +327,7 @@ const getFollowRowKey = (row: Pick<FollowRow, "follower_id" | "following_id">) =
 
 let presenceChannel: RealtimeChannel | null = null;
 let presenceChannelUserId: string | null = null;
+let isCompletingFocusBlock = false;
 let presenceCleanup: (() => Promise<void>) | null = null;
 let presenceLifecycleToken = 0;
 let presenceStartQueue: Promise<void> = Promise.resolve();
@@ -328,12 +364,13 @@ const toSocialProfile = (profile: ProfileRow, followStatus: FollowStatus, follow
   avatar_id: (profile.avatar_id as AvatarId | undefined) ?? DEFAULT_AVATAR_ID,
   selected_subjects: Array.isArray(profile.selected_subjects) ? profile.selected_subjects.filter(Boolean) : undefined,
   last_seen_at: profile.last_seen_at ?? null,
-  grade: Number(profile.grade ?? 10),
+  grade: Number(profile.grade ?? Number.NaN),
   level: Number(profile.level ?? 1) || 1,
   xp: Number(profile.xp ?? 0) || 0,
   is_public: Boolean(profile.is_public),
   followers_count: Number(profile.followers_count ?? 0) || 0,
   following_count: Number(profile.following_count ?? 0) || 0,
+  unlocked_journey_rewards: Array.isArray(profile.unlocked_journey_rewards) ? profile.unlocked_journey_rewards : [],
   follow_status: followStatus,
   followRowId,
 });
@@ -547,6 +584,10 @@ const getLoggedOutState = () => ({
   studentName: "Student",
   email: null as string | null,
   grade: 10,
+  educationLevel: null as "high_school" | "university" | null,
+  institutionName: null as string | null,
+  courseOfStudy: null as string | null,
+  yearOfStudy: null as string | null,
   level: 1,
   xp: 0,
   ...getTimerDefaults(),
@@ -557,6 +598,7 @@ const getLoggedOutState = () => ({
   is_public: true,
   followers_count: 0,
   following_count: 0,
+  unlockedJourneyRewards: [] as string[],
   onlineUserIds: [] as string[],
   notifiedOnlineUserIds: [] as string[],
   users: [] as User[],
@@ -567,6 +609,7 @@ const getLoggedOutState = () => ({
   activities: [] as Activity[],
   searchResults: [] as UserProfile[],
   isSearching: false,
+  searchError: null as string | null,
   pendingIncomingRequests: [] as SocialProfile[],
   friendsList: [] as SocialProfile[],
 });
@@ -580,6 +623,10 @@ export const useKarmelStore = create<State>()(
       studentName: "Student",
       email: null,
       grade: 10,
+      educationLevel: null,
+      institutionName: null,
+      courseOfStudy: null,
+      yearOfStudy: null,
       level: 1,
       xp: 0,
       ...getTimerDefaults(),
@@ -590,6 +637,7 @@ export const useKarmelStore = create<State>()(
       is_public: true,
       followers_count: 0,
       following_count: 0,
+      unlockedJourneyRewards: [],
       onlineUserIds: [],
       notifiedOnlineUserIds: [],
       users: [],
@@ -600,9 +648,10 @@ export const useKarmelStore = create<State>()(
       activities: [],
       searchResults: [],
       isSearching: false,
+      searchError: null,
       pendingIncomingRequests: [],
       friendsList: [],
-      signup: async (email, password, grade, studentName, subjects, role, avatarId) => {
+      signup: async (email, password, grade, studentName, subjects, role, avatarId, educationDetails) => {
         const e = email.trim().toLowerCase();
         const name = normalizeName(studentName ?? "");
         const selectedSubjects = (subjects ?? []).filter(Boolean);
@@ -619,12 +668,32 @@ export const useKarmelStore = create<State>()(
               avatar_id: selectedAvatarId,
               selected_subjects: selectedSubjects,
               grade,
+              education_level: educationDetails?.educationLevel,
+              institution_name: educationDetails?.institutionName,
+              course_of_study: educationDetails?.courseOfStudy,
+              year_of_study: educationDetails?.yearOfStudy,
             },
           },
         });
 
         if (error || !data.user) {
           return { ok: false, error: error?.message ?? "Could not create your account." };
+        }
+
+        // The auth trigger can create this row from metadata. When a session is available,
+        // upsert the same values so the new academic fields are persisted immediately.
+        if (data.session) {
+          const { error: profileError } = await supabase.from("profiles").upsert({
+            id: data.user.id,
+            role: userRole,
+            selected_subjects: selectedSubjects,
+            grade,
+            education_level: educationDetails?.educationLevel,
+            institution_name: educationDetails?.institutionName,
+            course_of_study: educationDetails?.courseOfStudy,
+            year_of_study: educationDetails?.yearOfStudy,
+          }, { onConflict: "id" });
+          if (profileError) return { ok: false, error: profileError.message };
         }
 
         const liveProfile = await loadLiveProfile(data.user.id).catch(() => null);
@@ -636,6 +705,10 @@ export const useKarmelStore = create<State>()(
           avatar_id: selectedAvatarId,
           selected_subjects: selectedSubjects,
           grade,
+          education_level: educationDetails?.educationLevel,
+          institution_name: educationDetails?.institutionName,
+          course_of_study: educationDetails?.courseOfStudy,
+          year_of_study: educationDetails?.yearOfStudy,
           level: 1,
           xp: 0,
           is_public: true,
@@ -675,6 +748,10 @@ export const useKarmelStore = create<State>()(
           avatar_id: (metadata.avatar_id as AvatarId | undefined) ?? DEFAULT_AVATAR_ID,
           selected_subjects: Array.isArray(metadata.selected_subjects) ? (metadata.selected_subjects as string[]) : [],
           grade: Number(metadata.grade ?? 10),
+          education_level: metadata.education_level === "high_school" || metadata.education_level === "university" ? metadata.education_level : null,
+          institution_name: typeof metadata.institution_name === "string" ? metadata.institution_name : null,
+          course_of_study: typeof metadata.course_of_study === "string" ? metadata.course_of_study : null,
+          year_of_study: typeof metadata.year_of_study === "string" ? metadata.year_of_study : null,
           level: Number(metadata.level ?? 1),
           xp: Number(metadata.xp ?? 0),
           is_public: typeof metadata.is_public === "boolean" ? metadata.is_public : true,
@@ -718,7 +795,7 @@ export const useKarmelStore = create<State>()(
         set(getLoggedOutState());
         void useKarmelStore.persist.clearStorage();
       },
-      signUp: async (email, password, grade, studentName, subjects, role, avatarId) => get().signup(email, password, grade, studentName, subjects, role, avatarId),
+      signUp: async (email, password, grade, studentName, subjects, role, avatarId, educationDetails) => get().signup(email, password, grade, studentName, subjects, role, avatarId, educationDetails),
       signIn: async (email, password) => get().login(email, password),
       signOut: async () => get().logout(),
       refreshNetworkData: async () => {
@@ -765,14 +842,18 @@ export const useKarmelStore = create<State>()(
       setStudent: (studentName, grade) => {
         const currentState = get();
         const nextName = normalizeName(studentName || "");
+        const shouldUpdateGrade = currentState.educationLevel !== "university" && typeof grade === "number";
         set((s) => ({
           studentName: nextName,
-          grade,
+          ...(shouldUpdateGrade ? { grade } : {}),
           users: s.email
-            ? s.users.map((user) => (user.email === s.email ? { ...user, studentName: nextName, grade } : user))
+            ? s.users.map((user) => (user.email === s.email ? { ...user, studentName: nextName, ...(shouldUpdateGrade ? { grade } : {}) } : user))
             : s.users,
         }));
-        void syncProfileToSupabase(currentState.userId, { full_name: nextName, grade });
+        void syncProfileToSupabase(currentState.userId, {
+          full_name: nextName,
+          ...(shouldUpdateGrade ? { grade } : {}),
+        });
       },
       setLevel: (level) => {
         set({ level: Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1 });
@@ -848,7 +929,9 @@ export const useKarmelStore = create<State>()(
               totalSecondsFocused: nextFocusedSeconds,
             });
             toast("Focus block completed! Time for a break.", { duration: 10000 });
-            void get().completeStudySession(nextFocusedSeconds);
+            // XP is awarded for this completed focus block only. totalSecondsFocused is a
+            // lifetime counter and must never be used as the session reward duration.
+            void get().completeStudySession(currentState.studyDurationMinutes * 60);
             return;
           }
 
@@ -874,6 +957,10 @@ export const useKarmelStore = create<State>()(
         set({ breakTimeLeft: nextTimeLeft });
       },
       completeStudySession: async (durationSeconds) => {
+        // A final timer tick can be observed twice during a render boundary. Only the
+        // first completion is allowed to create XP or a study_sessions record.
+        if (isCompletingFocusBlock) return;
+        isCompletingFocusBlock = true;
         const currentState = get();
         const currentUserId = currentState.userId;
         const focusedSeconds = Math.max(0, Math.floor(durationSeconds));
@@ -894,6 +981,7 @@ export const useKarmelStore = create<State>()(
         });
 
         if (!currentUserId) {
+          isCompletingFocusBlock = false;
           return;
         }
 
@@ -917,16 +1005,37 @@ export const useKarmelStore = create<State>()(
         if (sessionResult.status === "rejected") {
           console.error("study_sessions insert failed", sessionResult.reason);
         }
+        isCompletingFocusBlock = false;
       },
-      setAvatar: (avatarId) => {
+      claimJourneyReward: async (rewardId) => {
+        const { data, error } = await supabase.rpc("claim_journey_reward", { p_reward_id: rewardId });
+        if (error) return { ok: false, error: error.message };
+        const result = data as { unlocked_journey_rewards?: string[] } | null;
+        set((state) => ({
+          unlockedJourneyRewards: result?.unlocked_journey_rewards ?? [...new Set([...state.unlockedJourneyRewards, rewardId])],
+        }));
+        return { ok: true };
+      },
+      equipJourneyReward: async (rewardId) => {
+        const { data, error } = await supabase.rpc("equip_journey_reward", { p_reward_id: rewardId });
+        if (error) return { ok: false, error: error.message };
+        const result = data as { avatar_id?: AvatarId } | null;
+        set((state) => ({
+          avatarId: result?.avatar_id ?? state.avatarId,
+        }));
+        return { ok: true };
+      },
+      setAvatar: async (avatarId) => {
         const currentState = get();
+        const { error } = await supabase.rpc("set_profile_avatar", { p_avatar_id: avatarId });
+        if (error) return { ok: false, error: error.message };
         set((s) => ({
           avatarId,
           users: s.email
             ? s.users.map((user) => (user.email === s.email ? { ...user, avatarId } : user))
             : s.users,
         }));
-        void syncProfileToSupabase(currentState.userId, { avatar_id: avatarId });
+        return { ok: true };
       },
       setSubjects: (subjects) => {
         const currentState = get();
@@ -939,6 +1048,31 @@ export const useKarmelStore = create<State>()(
         }));
         void syncProfileToSupabase(currentState.userId, { selected_subjects: nextSubjects });
       },
+      updateAcademicProfile: async (updates) => {
+        const currentState = get();
+        if (!currentState.userId) return { ok: false, error: "You must be signed in to update your profile." };
+        const subjects = updates.subjects?.map((subject) => subject.trim()).filter(Boolean);
+        const nextYearOfStudy = updates.yearOfStudy?.trim() || null;
+        const nextInstitutionName = updates.institutionName?.trim() || null;
+        const nextCourseOfStudy = updates.courseOfStudy?.trim() || null;
+        const subjectsChanged = subjects !== undefined && (subjects.length !== currentState.subjects.length || subjects.some((subject, index) => subject !== currentState.subjects[index]));
+        const profileUpdates = {
+          ...(updates.yearOfStudy !== undefined && nextYearOfStudy !== currentState.yearOfStudy ? { year_of_study: nextYearOfStudy } : {}),
+          ...(updates.institutionName !== undefined && nextInstitutionName !== currentState.institutionName ? { institution_name: nextInstitutionName } : {}),
+          ...(updates.courseOfStudy !== undefined && nextCourseOfStudy !== currentState.courseOfStudy ? { course_of_study: nextCourseOfStudy } : {}),
+          ...(subjectsChanged ? { selected_subjects: subjects } : {}),
+        };
+        if (Object.keys(profileUpdates).length === 0) return { ok: true };
+        const { error } = await supabase.from("profiles").update(profileUpdates).eq("id", currentState.userId);
+        if (error) return { ok: false, error: error.message };
+        set({
+          ...(updates.yearOfStudy !== undefined && nextYearOfStudy !== currentState.yearOfStudy ? { yearOfStudy: nextYearOfStudy } : {}),
+          ...(updates.institutionName !== undefined && nextInstitutionName !== currentState.institutionName ? { institutionName: nextInstitutionName } : {}),
+          ...(updates.courseOfStudy !== undefined && nextCourseOfStudy !== currentState.courseOfStudy ? { courseOfStudy: nextCourseOfStudy } : {}),
+          ...(subjectsChanged ? { subjects } : {}),
+        });
+        return { ok: true };
+      },
       setLast: (lastSubject, lastMode) => set({ lastSubject, lastMode }),
       setActivePaper: (activePaper) => set({ activePaper }),
       setActiveStudyMode: (activeStudyMode) => set({ activeStudyMode }),
@@ -947,31 +1081,38 @@ export const useKarmelStore = create<State>()(
       searchUsers: async (query) => {
         const searchTerm = query.trim();
         if (!searchTerm) {
-          set({ searchResults: [], isSearching: false });
+          set({ searchResults: [], isSearching: false, searchError: null });
           return;
         }
 
-        set({ isSearching: true });
+        set({ isSearching: true, searchError: null });
         try {
           const currentUserId = get().userId;
-          const safeTerm = searchTerm.replace(/%/g, "\\%").replace(/,/g, "\\,");
+          const safeTerm = searchTerm.replace(/[%_,()]/g, "\\$&");
           const normalizedUsername = normalizeUsername(searchTerm);
+          let publicQuery = supabase
+            .from("profiles")
+            .select(PROFILE_WITH_PRESENCE_SELECT)
+            .eq("is_public", true)
+            .or(`username.ilike.%${safeTerm}%,username.ilike.%${normalizedUsername}%,full_name.ilike.%${safeTerm}%`)
+            .order("followers_count", { ascending: false })
+            .limit(20);
+          let privateQuery = supabase
+            .from("profiles")
+            .select(PROFILE_WITH_PRESENCE_SELECT)
+            .eq("is_public", false)
+            .or(`username.eq.${normalizedUsername},username.eq.@${normalizedUsername}`)
+            .limit(20);
+
+          if (currentUserId) {
+            publicQuery = publicQuery.neq("id", currentUserId);
+            privateQuery = privateQuery.neq("id", currentUserId);
+          }
 
           const [publicResult, privateResult, relationshipResult] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select(PROFILE_WITH_PRESENCE_SELECT)
-              .eq("is_public", true)
-              .or(`username.ilike.%${safeTerm}%,full_name.ilike.%${safeTerm}%`)
-              .order("followers_count", { ascending: false })
-              .limit(20),
+            publicQuery,
             normalizedUsername
-              ? supabase
-                  .from("profiles")
-                  .select(PROFILE_WITH_PRESENCE_SELECT)
-                  .eq("is_public", false)
-                  .or(`username.ilike.${normalizedUsername},username.ilike.@${normalizedUsername}`)
-                  .limit(20)
+              ? privateQuery
               : Promise.resolve({ data: [], error: null as null }),
             currentUserId
               ? supabase
@@ -1000,6 +1141,7 @@ export const useKarmelStore = create<State>()(
           }
 
           set({
+            searchError: null,
             searchResults: uniqueProfiles.map((profile) => {
               const followStatus = relationshipMap.get(profile.id);
               return {
@@ -1009,12 +1151,13 @@ export const useKarmelStore = create<State>()(
                 avatar_id: (profile.avatar_id as AvatarId | undefined) ?? DEFAULT_AVATAR_ID,
                 selected_subjects: Array.isArray(profile.selected_subjects) ? profile.selected_subjects.filter(Boolean) : undefined,
                 last_seen_at: profile.last_seen_at ?? null,
-                grade: Number(profile.grade ?? 10),
+                grade: Number(profile.grade ?? Number.NaN),
                 level: Number(profile.level ?? 1) || 1,
                 xp: Number(profile.xp ?? 0) || 0,
                 is_public: Boolean(profile.is_public),
                 followers_count: Number(profile.followers_count ?? 0) || 0,
                 following_count: Number(profile.following_count ?? 0) || 0,
+                unlocked_journey_rewards: Array.isArray(profile.unlocked_journey_rewards) ? profile.unlocked_journey_rewards : [],
                 follow_status: followStatus,
                 is_following: followStatus === "accepted",
               };
@@ -1022,7 +1165,10 @@ export const useKarmelStore = create<State>()(
           });
         } catch (error) {
           console.error("searchUsers failed", error);
-          set({ searchResults: [] });
+          set({
+            searchResults: [],
+            searchError: error instanceof Error ? error.message : "Could not search students. Please try again.",
+          });
         } finally {
           set({ isSearching: false });
         }
@@ -1191,6 +1337,10 @@ export const useKarmelStore = create<State>()(
         studentName: state.studentName,
         email: state.email,
         grade: state.grade,
+        educationLevel: state.educationLevel,
+        institutionName: state.institutionName,
+        courseOfStudy: state.courseOfStudy,
+        yearOfStudy: state.yearOfStudy,
         level: state.level,
         xp: state.xp,
         isTimerRunning: state.isTimerRunning,
@@ -1207,6 +1357,7 @@ export const useKarmelStore = create<State>()(
         is_public: state.is_public,
         followers_count: state.followers_count,
         following_count: state.following_count,
+        unlockedJourneyRewards: state.unlockedJourneyRewards,
         lastSubject: state.lastSubject,
         lastMode: state.lastMode,
         activePaper: state.activePaper,

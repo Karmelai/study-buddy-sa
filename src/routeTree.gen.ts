@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TimerRouteImport } from './routes/timer'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as PapersRouteImport } from './routes/papers'
+import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ const StudyRoute = StudyRouteImport.update({
 const PapersRoute = PapersRouteImport.update({
   id: '/papers',
   path: '/papers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JourneyRoute = JourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FriendsRoute = FriendsRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/journey': typeof JourneyRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
   '/timer': typeof TimerRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/journey': typeof JourneyRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
   '/timer': typeof TimerRoute
@@ -68,22 +76,33 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/journey': typeof JourneyRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
+  fullPaths:
+    '/' | '/auth' | '/friends' | '/journey' | '/papers' | '/study' | '/timer'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
-  id: '__root__' | '/' | '/auth' | '/friends' | '/papers' | '/study' | '/timer'
+  to: '/' | '/auth' | '/friends' | '/journey' | '/papers' | '/study' | '/timer'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/friends'
+    | '/journey'
+    | '/papers'
+    | '/study'
+    | '/timer'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   FriendsRoute: typeof FriendsRoute
+  JourneyRoute: typeof JourneyRoute
   PapersRoute: typeof PapersRoute
   StudyRoute: typeof StudyRoute
   TimerRoute: typeof TimerRoute
@@ -110,6 +129,13 @@ declare module '@tanstack/react-router' {
       path: '/papers'
       fullPath: '/papers'
       preLoaderRoute: typeof PapersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/journey': {
+      id: '/journey'
+      path: '/journey'
+      fullPath: '/journey'
+      preLoaderRoute: typeof JourneyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/friends': {
@@ -140,6 +166,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   FriendsRoute: FriendsRoute,
+  JourneyRoute: JourneyRoute,
   PapersRoute: PapersRoute,
   StudyRoute: StudyRoute,
   TimerRoute: TimerRoute,

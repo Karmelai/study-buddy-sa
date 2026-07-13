@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Default profile sticker">
+  <rect width="128" height="128" rx="64" fill="#27272a"/>
+  <circle cx="64" cy="47" r="22" fill="#a1a1aa"/>
+  <path d="M24 112c5-24 20-38 40-38s35 14 40 38" fill="#a1a1aa"/>
+</svg>

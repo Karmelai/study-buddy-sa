@@ -23,6 +23,10 @@ type ConnectionProfileRow = {
   selected_subjects?: string[] | null;
   last_seen_at?: string | null;
   grade?: number | null;
+  education_level?: "high_school" | "university" | null;
+  institution_name?: string | null;
+  course_of_study?: string | null;
+  year_of_study?: string | null;
   level?: number | null;
   xp?: number | null;
   is_public?: boolean | null;
@@ -43,7 +47,11 @@ const toConnectionProfile = (profile: ConnectionProfileRow): SocialProfile => ({
   avatar_id: profile.avatar_id ?? DEFAULT_AVATAR_ID,
   selected_subjects: Array.isArray(profile.selected_subjects) ? profile.selected_subjects.filter(Boolean) : undefined,
   last_seen_at: profile.last_seen_at ?? null,
-  grade: Number(profile.grade ?? 10),
+  grade: Number(profile.grade ?? Number.NaN),
+  education_level: profile.education_level,
+  institution_name: profile.institution_name,
+  course_of_study: profile.course_of_study,
+  year_of_study: profile.year_of_study,
   level: Number(profile.level ?? 1) || 1,
   xp: Number(profile.xp ?? 0) || 0,
   is_public: Boolean(profile.is_public),
@@ -74,7 +82,7 @@ const buildConnectionQuery = async (userId: string, view: ConnectionView) => {
 
   const { data: profileRows, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, full_name, avatar_id, selected_subjects, last_seen_at, grade, level, xp, is_public, followers_count, following_count")
+    .select("id, username, full_name, avatar_id, selected_subjects, last_seen_at, grade, education_level, institution_name, course_of_study, year_of_study, level, xp, is_public, followers_count, following_count")
     .in("id", ids);
 
   if (profileError) {
@@ -94,7 +102,7 @@ const buildConnectionQuery = async (userId: string, view: ConnectionView) => {
 export default function ProfileView({
   isOpen,
   onClose,
-  user,
+  user: initialUser,
   isCurrentUser,
   onSettingsClick,
   onFollowChange,
@@ -110,10 +118,55 @@ export default function ProfileView({
   const [connectionItems, setConnectionItems] = useState<SocialProfile[]>([]);
   const [isConnectionLoading, setIsConnectionLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [fetchedProfile, setFetchedProfile] = useState<UserProfile | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profileFetchError, setProfileFetchError] = useState<string | null>(null);
+  const user = fetchedProfile ?? initialUser;
   const requestStatus = user ? (user as UserProfile & { follow_status?: "pending" | "accepted" | "declined" }).follow_status : undefined;
   const isFollowing = requestStatus === "accepted";
   const canViewConnections = isCurrentUser || Boolean(user?.is_public) || isFollowing;
   const activeConnectionLabel = connectionView === "followers" ? "Followers" : "Following";
+
+  useEffect(() => {
+    const userId = initialUser?.id;
+    if (!userId) {
+      setFetchedProfile(null);
+      setIsProfileLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsProfileLoading(true);
+    setProfileFetchError(null);
+
+    void supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_id, selected_subjects, grade, education_level, institution_name, course_of_study, year_of_study, level, xp, is_public, followers_count, following_count")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setProfileFetchError(error.message);
+          setFetchedProfile(null);
+        } else if (data) {
+          // Keep relationship state supplied by the parent while refreshing academic data.
+          const rawGrade = (data as { grade?: unknown }).grade;
+          setFetchedProfile({
+            ...initialUser,
+            ...(data as UserProfile),
+            grade: rawGrade === null || rawGrade === undefined || rawGrade === "" ? Number.NaN : Number(rawGrade),
+          });
+        } else {
+          setFetchedProfile(null);
+        }
+        setIsProfileLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialUser?.id]);
 
   useEffect(() => {
     if (!isOpen || !user) {
@@ -173,13 +226,25 @@ export default function ProfileView({
   }, [canViewConnections, connectionView, isOpen, user?.id]);
 
   if (!isOpen || !user) return null;
+  if (isProfileLoading && fetchedProfile?.id !== initialUser?.id) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm">
+        <p className="text-sm text-white/60">Loading profile…</p>
+      </div>
+    );
+  }
 
   const avatarOption = getAvatarOption(user.avatar_id);
-  const displayUsername = user.username.trim().startsWith("@") ? user.username.trim() : `@${user.username.trim()}`;
+  const normalizedUsername = String(user.username ?? "").trim();
+  const displayUsername = normalizedUsername ? (normalizedUsername.startsWith("@") ? normalizedUsername : `@${normalizedUsername}`) : "@student";
   const isPending = requestStatus === "pending";
   const level = isCurrentUser ? currentUserLevel : user.level ?? 1;
   const canViewSubjects = isCurrentUser || isFollowing;
   const isOnline = onlineUserIds.includes(user.id);
+  const isUniversityStudent = user.education_level === "university";
+  const isHighSchoolStudent = !isUniversityStudent;
+  const hasGrade = Number.isFinite(user.grade);
+  const hasUniversityDetails = Boolean(user.institution_name || user.course_of_study || user.year_of_study);
 
   const openConnections = (view: ConnectionView) => {
     setConnectionView(view);
@@ -223,11 +288,11 @@ export default function ProfileView({
         {/* Profile Content */}
         <div className="p-5 sm:p-6">
           {/* Avatar and Name Section */}
-          <div className="flex flex-col items-center gap-4">
+          <div className="relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl py-3">
             <button
               type="button"
               onClick={() => setIsAvatarPreviewOpen(true)}
-              className={`h-20 w-20 overflow-hidden rounded-full bg-white/5 transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 ${
+              className={`h-24 w-24 overflow-hidden rounded-full bg-white/5 transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/40 ${
                 isOnline ? "ring-2 ring-green-500 ring-offset-2 ring-offset-slate-900" : "border border-white/10"
               }`}
               aria-label="Preview avatar"
@@ -258,7 +323,7 @@ export default function ProfileView({
           </div>
 
           {/* Stats Row */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className={`mt-6 grid grid-cols-2 gap-3 ${isUniversityStudent ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
             <button
               type="button"
               onClick={() => openConnections("followers")}
@@ -279,10 +344,10 @@ export default function ProfileView({
               </p>
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Following</p>
             </button>
-            <div className="flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+            {isHighSchoolStudent && hasGrade && <div className="flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
               <p className="text-lg font-semibold text-white">{user.grade}</p>
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Grade</p>
-            </div>
+            </div>}
             <div className="flex flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
               <p className="text-lg font-semibold text-white">{level}</p>
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Level</p>
@@ -292,9 +357,13 @@ export default function ProfileView({
           {/* Grade and Subjects Section */}
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-sm font-medium text-white/80 mb-3">Academic Profile</p>
-            <p className="text-xs text-white/50 mb-2">
+            {isUniversityStudent ? <>
+              <p className="text-xs text-white/50 mb-2">Institution: <span className="font-medium text-white">{user.institution_name || "Not provided"}</span></p>
+              <p className="text-xs text-white/50 mb-2">Course: <span className="font-medium text-white">{user.course_of_study || "Not provided"}</span></p>
+              <p className="text-xs text-white/50 mb-2">Year: <span className="font-medium text-white">{user.year_of_study || "Not provided"}</span></p>
+            </> : isHighSchoolStudent && hasGrade ? <p className="text-xs text-white/50 mb-2">
               Grade: <span className="font-medium text-white">{user.grade}</span>
-            </p>
+            </p> : !hasGrade && !hasUniversityDetails ? <p className="text-xs text-white/50 mb-2">Academic information not provided</p> : null}
             <p className="text-xs text-white/50 mb-2">
               Level: <span className="font-medium text-white">{level}</span>
             </p>
@@ -431,7 +500,7 @@ export default function ProfileView({
                         key={item.id}
                         className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]"
                       >
-                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
                           <img src={avatar.image} alt={item.full_name} className="h-full w-full object-cover" />
                         </div>
                         <div className="min-w-0 flex-1">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
+import { CheckCircle2, Inbox, Search, Users, XCircle } from "lucide-react";
 import { getAvatarOption } from "@/lib/avatars";
 import { formatLastSeen } from "@/lib/presence";
 import { useKarmelStore, type SocialProfile } from "@/store/useKarmelStore";
@@ -10,20 +10,17 @@ const ProfileRow = ({ user, isOnline }: { user: SocialProfile; isOnline: boolean
   const avatar = getAvatarOption(user.avatar_id);
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <div
-        className={`h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/5 ${
-          isOnline ? "ring-2 ring-green-500 ring-offset-2 ring-offset-slate-900" : "border border-white/10"
-        }`}
-      >
+    <div className="relative flex min-h-16 items-center gap-3 overflow-hidden py-3">
+      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/5 ${isOnline ? "ring-1 ring-white/60" : "border border-white/10"}`}>
         <img src={avatar.image} alt={user.full_name} className="h-full w-full object-cover" />
+        <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-zinc-950 ${isOnline ? "bg-white" : "bg-white/25"}`} aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
         <p className="truncate text-xs text-white/45">{user.username}</p>
         {isOnline ? (
-          <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+          <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-white/75">
+            <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
             Online
           </p>
         ) : (
@@ -63,39 +60,33 @@ export default function FriendsHub() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-12">
-      <section className="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-6 shadow-2xl shadow-black/20 sm:p-8">
-        <div className="flex flex-col gap-6 border-b border-white/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-col gap-5 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/35">Friends Network</p>
-            <h1 className="mt-2 text-3xl font-semibold text-white">Manage requests and study friends</h1>
+            <h1 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Manage requests and study friends</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/50">
               Accept incoming requests, decline the ones you do not know, and keep your study circle clean.
             </p>
           </div>
-          <div className="flex flex-col items-stretch gap-3 sm:items-end">
+          <div className="flex w-full items-center gap-3 sm:w-auto">
+            <span className="min-w-0 flex-1 text-right text-sm text-white/50 sm:flex-none sm:text-left">
+              {friendsList.length} {friendsList.length === 1 ? "friend" : "friends"}
+              {pendingIncomingRequests.length > 0 ? ` · ${pendingIncomingRequests.length} pending` : ""}
+            </span>
             <button
               type="button"
               onClick={() => setIsDiscoveryOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 bg-white px-3.5 py-2 text-sm font-medium text-black transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-black"
             >
               <Search size={16} />
               Search friends
             </button>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/75">
-              <Users size={16} />
-              {friendsList.length} friends
-              {pendingIncomingRequests.length > 0 ? (
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-black">
-                  {pendingIncomingRequests.length} pending
-                </span>
-              ) : null}
-            </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <section className="flex min-h-80 flex-col rounded-xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">Incoming Requests</h2>
@@ -110,18 +101,20 @@ export default function FriendsHub() {
 
             <div className="mt-4 space-y-3">
               {pendingIncomingRequests.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center">
-                  <p className="text-sm text-white/45">No pending requests right now.</p>
+                <div className="flex flex-1 flex-col items-center justify-center border-y border-dashed border-white/10 px-4 text-center">
+                  <Inbox size={20} className="text-white/35" aria-hidden="true" />
+                  <p className="mt-3 text-sm font-medium text-white/70">No pending requests</p>
+                  <p className="mt-1 text-sm text-white/40">New requests will appear here.</p>
                 </div>
               ) : (
                 pendingIncomingRequests.map((user) => (
-                  <div key={user.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <div key={user.id} className="border-b border-white/10 py-2 last:border-b-0 sm:flex sm:items-center sm:gap-4">
                     <ProfileRow user={user} isOnline={onlineUserIds.includes(user.id)} />
-                    <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+                    <div className="mb-2 flex shrink-0 flex-wrap gap-2 sm:mb-0 sm:justify-end">
                       <button
                         type="button"
                         onClick={() => handleAccept(user.id)}
-                        className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300"
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-sm font-medium text-black transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/60"
                       >
                         <CheckCircle2 size={16} />
                         Accept
@@ -129,7 +122,7 @@ export default function FriendsHub() {
                       <button
                         type="button"
                         onClick={() => handleDecline(user.id)}
-                        className="inline-flex items-center gap-2 rounded-full border border-red-400/25 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
                       >
                         <XCircle size={16} />
                         Decline
@@ -141,16 +134,18 @@ export default function FriendsHub() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+          <section className="flex min-h-80 flex-col rounded-xl border border-white/10 bg-white/[0.02] p-5 sm:p-6">
             <div>
               <h2 className="text-lg font-semibold text-white">My Friends</h2>
               <p className="mt-1 text-sm text-white/45">See who was last active in your study circle.</p>
             </div>
 
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 flex-1">
               {friendsList.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center">
-                  <p className="text-sm text-white/45">No friends yet. Accept a request to get started.</p>
+                <div className="flex h-full min-h-48 flex-col items-center justify-center border-y border-dashed border-white/10 px-4 text-center">
+                  <Users size={20} className="text-white/35" aria-hidden="true" />
+                  <p className="mt-3 text-sm font-medium text-white/70">No friends yet</p>
+                  <p className="mt-1 text-sm text-white/40">Accept a request to get started.</p>
                 </div>
               ) : (
                 friendsList.map((user) => (
@@ -158,7 +153,7 @@ export default function FriendsHub() {
                     key={user.id}
                     type="button"
                     onClick={() => handleOpenFriendProfile(user)}
-                    className="w-full text-left transition hover:opacity-90 focus:outline-none"
+                    className="w-full border-b border-white/10 text-left transition last:border-b-0 hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white/60"
                   >
                     <ProfileRow user={user} isOnline={onlineUserIds.includes(user.id)} />
                   </button>
@@ -167,7 +162,6 @@ export default function FriendsHub() {
             </div>
           </section>
         </div>
-      </section>
 
       <ProfileView
         isOpen={isProfileOpen}

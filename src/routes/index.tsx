@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import AppShell from "@/components/AppShell";
 import { useKarmelStore } from "@/store/useKarmelStore";
-import { BookOpen, Clock3, FileText, Users } from "lucide-react";
+import { BookOpen, Clock3, FileText, Map, Users } from "lucide-react";
+import { JOURNEY_REWARDS, xpRequiredForNextLevel } from "@/lib/journey";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,11 +30,10 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const { studentName, grade, activities, role } = useKarmelStore();
+  const { studentName, grade, activities, role, level, xp } = useKarmelStore();
 
   const recommendation = activities.find((a) => a.weakTopics && a.weakTopics.length > 0) ?? null;
   const isTeacher = role === "teacher";
-  const dashboardHeader = isTeacher ? "Select a subject to prepare" : "Select a subject to study";
   const studyTitle = isTeacher ? "AI Teaching Assistant" : "Study a Subject";
   const studyText = isTeacher
     ? "Get guided help with lesson plans, homework, and topics."
@@ -42,50 +42,64 @@ function Home() {
   const papersText = isTeacher
     ? "Let AI analyze past papers to extract high-yield, complex questions to inspire your next assessment."
     : "Work through past exam questions one at a time.";
+  const nextReward = JOURNEY_REWARDS.find((reward) => reward.unlockLevel > level);
+  const journeyProgress = Math.round((xp / xpRequiredForNextLevel(level)) * 100);
 
   return (
     <AppShell>
-      <div className="max-w-5xl w-full mx-auto px-6 py-12 space-y-10">
-        <section>
-          <p className="text-white/50 text-sm">Welcome back</p>
-          <h1 className="text-4xl font-semibold mt-1">Hello, {studentName}.</h1>
-          <div className="mt-3 flex items-center gap-3 text-sm text-white/60">
-            <span>Grade {grade}</span>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <section className="border-b border-white/10 pb-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+            <h1 className="text-3xl font-semibold sm:text-4xl">Hello, {studentName}.</h1>
+            <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/60">Grade {grade}</span>
           </div>
         </section>
 
-        <section>
-          <p className="text-sm uppercase tracking-widest text-white/40 mb-3">{dashboardHeader}</p>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Link to="/study" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
+        <section className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Link to="/study" className="group flex min-h-52 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6 md:col-span-2 lg:col-span-3 lg:row-span-2 lg:min-h-0">
             <BookOpen className="text-white/80" />
-            <h3 className="mt-4 font-medium">{studyTitle}</h3>
-            <p className="text-white/50 text-sm mt-1">{studyText}</p>
+            <div className="mt-auto pt-10 lg:pt-14">
+              <h3 className="text-lg font-medium">{studyTitle}</h3>
+              <p className="mt-2 max-w-md text-sm text-white/50">{studyText}</p>
+            </div>
           </Link>
-          <Link to="/timer" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
+          <Link to="/timer" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
             <Clock3 className="text-white/80" />
-            <h3 className="mt-4 font-medium">Study Timer</h3>
-            <p className="text-white/50 text-sm mt-1">Run a focused session with XP and leveling.</p>
+            <div className="mt-auto pt-7">
+              <h3 className="font-medium">Study Timer</h3>
+              <p className="mt-1 text-sm text-white/50">Run a focused session with XP and leveling.</p>
+            </div>
           </Link>
-          <Link to="/papers" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/60 hover:bg-accent">
+          <Link to="/papers" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
             <FileText className="text-white/80" />
-            <h3 className="mt-4 font-medium">{papersTitle}</h3>
-            <p className="text-white/50 text-sm mt-1">{papersText}</p>
+            <div className="mt-auto pt-7">
+              <h3 className="font-medium">{papersTitle}</h3>
+              <p className="mt-1 text-sm text-white/50">{papersText}</p>
+            </div>
+          </Link>
+          <Link to="/journey" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
+            <Map className="text-white/80" />
+            <div className="mt-auto pt-7">
+              <h3 className="font-medium">Journey</h3>
+              <p className="mt-1 text-sm text-white/50">Study, level up, and unlock new stickers.</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary" style={{ width: `${journeyProgress}%` }} /></div>
+              <p className="mt-2 text-xs text-white/45">{nextReward ? `Next: ${nextReward.name} at Level ${nextReward.unlockLevel}` : "All rewards unlocked"}</p>
+            </div>
           </Link>
           <Link
             to="/friends"
-            className="group rounded-2xl border border-border bg-card p-6 text-left transition hover:border-primary/60 hover:bg-accent"
+            className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6 md:col-span-2 lg:col-span-1"
           >
             <Users className="text-white/80" />
-            <h3 className="mt-4 font-medium">Friends and study</h3>
-            <p className="text-white/50 text-sm mt-1">Discover and follow classmates to grow your study circle.</p>
+            <div className="mt-auto pt-7">
+              <h3 className="font-medium">Friends and study</h3>
+              <p className="mt-1 text-sm text-white/50">Discover and follow classmates to grow your study circle.</p>
+            </div>
           </Link>
         </section>
 
         {recommendation && (
-          <section className="rounded-2xl border border-border bg-card p-6">
+          <section className="mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
             <p className="text-xs uppercase tracking-widest text-white/40">Recommended for you</p>
             <h3 className="mt-2 text-lg">
               Revise <span className="text-white">{recommendation.weakTopics?.[0]}</span> - you struggled last time in{" "}

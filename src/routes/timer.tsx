@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, TimerReset } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { useKarmelStore } from "@/store/useKarmelStore";
@@ -185,12 +185,7 @@ function StudyTimerPage() {
     <AppShell>
       <div className="relative flex-1">
         <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-10">
-          <section className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center gap-8 rounded-lg border border-white/10 bg-black/10 px-4 py-8 sm:px-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-white/50">
-              <TimerReset size={13} />
-              My Timer
-            </div>
-
+          <section className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center gap-8 px-4 py-8 sm:px-8">
             <div className="flex flex-col items-center gap-5 text-center">
               <p className={`text-xs font-medium uppercase tracking-[0.35em] ${accentClass}`}>
                 &mdash; {phaseLabel} &mdash;

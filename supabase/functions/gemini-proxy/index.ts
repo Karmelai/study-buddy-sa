@@ -41,19 +41,32 @@ const toBase64 = (bytes: Uint8Array) => {
 const GUIDED_STUDY_RULES = `You are KARMEL, a helpful high-school mathematics tutor.
 
 Persona and style:
-- Greet the user only in the first message of this session. Do not repeat greetings, names, pleasantries, or conversational filler in later turns; get straight to the requested solution.
-- Keep responses concise and focused on the step-by-step calculation and final answer.
+- Greet the user exactly once at the start of the session using "Hi [User Name]". Never repeat that greeting or add "Hi" in later turns.
+- Be supportive and concise. Guide the student toward the answer instead of simply giving it away.
 
 Mathematical formatting:
-- Always write mathematical expressions in clean LaTeX notation.
-- Use $\\sqrt{x}$ for square roots, $x^2$ for exponents, $\\frac{a}{b}$ for fractions, and $a \\pm b$ for plus-minus operations.
-- Never spell out mathematical operations in prose when valid LaTeX notation can express them.
+- Use $...$ for short inline expressions and $$...$$ on their own lines for full equations.
+- Use clean LaTeX: $\\sqrt{x}$ for square roots, $x^2$ for exponents, $\\frac{a}{b}$ for fractions, $\\bar{x}$ for an overline, and $a \\pm b$ for plus-minus operations.
+- Never improvise notation as x-bar, y-bar, or [numerator] / [denominator]. Do not wrap ordinary prose in math delimiters.
 
 Guided-study behaviour:
 - Do not dump the entire paper or massive blocks of text at once.
 - Present the first question clearly from the attached paper and ask the user how they want to approach it.
 - Validate the student's logic using the attached official marking memo.
 - If they struggle, do not give the final answer immediately; explain the core concept and guide them to the conclusion step-by-step.`;
+
+const EXAM_SIMULATION_RULES = `You are a strict, silent exam proctor.
+- Greet the user exactly once at the start of the session using "Hi [User Name]". Never repeat that greeting or add "Hi" in later turns.
+- Use the attached examination paper and official memo as the only source of questions, answers, and marking guidance. Do not invent, substitute, or paraphrase a different question.
+- Wait for the student to submit an answer.
+- Do not provide explanations, study tips, conversational filler, or direct answers unless the student explicitly asks for help or is clearly stuck.
+- Keep every response extremely concise.
+- Use $...$ for short expressions and $$...$$ on their own lines for full equations. Use clean LaTeX notation such as $\\bar{x}$, $\\sum$, $\\frac{a}{b}$, and $x^2$; never improvised plain-text equations.`;
+
+const HIGH_YIELD_SYSTEM_PROMPT = `You are a master exam tutor. Analyze the provided exam paper and memo. Create a 'High Yield Study Sheet'. For each critical question, format the response exactly as follows:
+- Original Question: [Quote the text exactly]
+- Simplified Concept: [Explain the question in plain, easy-to-understand English]
+- Official Answer: [Provide the answer in concise bullet points derived strictly from the memo]`;
 
 serve(async (req) => {
   console.log("--- FUNCTION START ---");
@@ -77,12 +90,15 @@ serve(async (req) => {
     const prompt = toTrimmedString(payload.prompt);
     if (!prompt) return json({ error: "prompt is required." }, { status: 400 });
 
+    const paperMode = payload.activeStudyMode === "guided" || payload.activeStudyMode === "exam" || payload.activeStudyMode === "high_yield";
     const guidedMode = payload.activeStudyMode === "guided";
+    const examMode = payload.activeStudyMode === "exam";
+    const highYieldMode = payload.activeStudyMode === "high_yield";
     const pdfPath = toTrimmedString(payload.pdf_storage_path);
     const memoPath = toTrimmedString(payload.memo_storage_path);
     const documentParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
 
-    if (guidedMode) {
+    if (paperMode) {
       const authClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
       });
@@ -131,10 +147,16 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: guidedMode ? { parts: [{ text: GUIDED_STUDY_RULES }] } : undefined,
+        systemInstruction: highYieldMode
+          ? { parts: [{ text: HIGH_YIELD_SYSTEM_PROMPT }] }
+          : guidedMode
+            ? { parts: [{ text: GUIDED_STUDY_RULES }] }
+            : examMode
+              ? { parts: [{ text: EXAM_SIMULATION_RULES }] }
+            : undefined,
         contents: [{
           role: "user",
-          parts: guidedMode
+          parts: paperMode
             ? [{ text: "Attached are the examination paper followed by its official marking memo. Use them as the source of truth." }, ...documentParts, { text: prompt }]
             : [{ text: prompt }],
         }],

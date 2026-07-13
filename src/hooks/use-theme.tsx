@@ -1,6 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export const themes = ["default", "high-contrast", "purple", "light", "springbok", "midnight", "ocean", "sunset", "aurora", "glassmorphism", "synthwave", "stardust"] as const;
+export const themes = [
+  "default",
+  "high-contrast",
+  "purple",
+  "light",
+  "springbok",
+  "midnight",
+  "aurora",
+  "glassmorphism",
+  "synthwave",
+  "stardust",
+  "dark-academia",
+  "midnight-london",
+] as const;
 export type Theme = (typeof themes)[number];
 
 type ThemeContextValue = {
@@ -37,12 +50,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       "theme-glassmorphism",
       "theme-synthwave",
       "theme-stardust",
+      "theme-dark-academia",
+      "theme-midnight-london",
     );
     if (theme !== "default") root.classList.add(`theme-${theme}`);
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
-  return <ThemeContext.Provider value={{ theme, setTheme: setThemeState }}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme: setThemeState }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {

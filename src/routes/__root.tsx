@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import AppRuntime from "@/components/AppRuntime";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { RadioProvider } from "@/features/radio/RadioProvider";
 
 function NotFoundComponent() {
   return (
@@ -138,10 +139,12 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <AppRuntime />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="bottom-right" richColors closeButton />
+        <RadioProvider>
+          <AppRuntime />
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster position="bottom-right" richColors closeButton />
+        </RadioProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

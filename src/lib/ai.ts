@@ -2,17 +2,55 @@ import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export type GuidedPaperRequest = {
-  activeStudyMode: "guided";
+export type PaperMode = "guided" | "exam" | "high_yield";
+
+export type PaperRequest = {
+  activeStudyMode: PaperMode;
   pdf_storage_path: string;
   memo_storage_path: string;
 };
 
+type PaperContextSource = {
+  pdf_storage_path?: string | null;
+  memo_storage_path?: string | null;
+};
+
+const extractText = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(extractText).join("");
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (typeof record.text === "string") return record.text;
+    if (typeof record.content === "string") return record.content;
+    if (Array.isArray(record.parts)) return record.parts.map(extractText).join("");
+  }
+  return "";
+};
+
+export const createPaperRequest = (
+  paper: PaperContextSource | null | undefined,
+  activeStudyMode: unknown,
+): PaperRequest | undefined => {
+  if (
+    !paper?.pdf_storage_path ||
+    !paper.memo_storage_path ||
+    (activeStudyMode !== "guided" && activeStudyMode !== "exam" && activeStudyMode !== "high_yield")
+  ) {
+    return undefined;
+  }
+
+  return {
+    activeStudyMode,
+    pdf_storage_path: paper.pdf_storage_path,
+    memo_storage_path: paper.memo_storage_path,
+  };
+};
+
 const formatPrompt = (messages: ChatMessage[], userName: string) => {
-  const systemMessage = messages.find((message) => message.role === "system")?.content ?? "";
+  const systemMessage = extractText(messages.find((message) => message.role === "system")?.content);
   const conversation = messages
     .filter((message) => message.role !== "system")
-    .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`)
+    .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${extractText(message.content)}`)
     .join("\n");
 
   return [
@@ -45,7 +83,7 @@ const readGeminiStream = async (response: Response) => {
     }
 
     text += event.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? "")
+      ?.map((part: unknown) => extractText(part))
       .join("") ?? "";
   };
 
@@ -71,12 +109,16 @@ export async function callAI(
   messages: ChatMessage[],
   userName: string = "Student",
   mode: string,
-  guidedPaper?: GuidedPaperRequest,
+  paperRequest?: PaperRequest,
 ): Promise<string> {
   const prompt = formatPrompt(messages, userName);
 
-  if (mode === "pastpaper_guided") {
-    if (!guidedPaper) {
+  if (mode.startsWith("pastpaper_") && !paperRequest) {
+    throw new Error("The active paper and official memo must be available before starting this session.");
+  }
+
+  if (paperRequest) {
+    if (!paperRequest.pdf_storage_path || !paperRequest.memo_storage_path) {
       throw new Error("This paper is missing its PDF or memo storage path.");
     }
 
@@ -90,9 +132,9 @@ export async function callAI(
       },
       body: JSON.stringify({
         prompt,
-        activeStudyMode: guidedPaper.activeStudyMode,
-        pdf_storage_path: guidedPaper.pdf_storage_path,
-        memo_storage_path: guidedPaper.memo_storage_path,
+        activeStudyMode: paperRequest.activeStudyMode,
+        pdf_storage_path: paperRequest.pdf_storage_path,
+        memo_storage_path: paperRequest.memo_storage_path,
       }),
     });
 

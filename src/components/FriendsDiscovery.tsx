@@ -17,6 +17,7 @@ export default function FriendsDiscovery({ isOpen, onClose }: FriendsDiscoveryPr
   const searchUsers = useKarmelStore((s) => s.searchUsers);
   const searchResults = useKarmelStore((s) => s.searchResults);
   const isSearching = useKarmelStore((s) => s.isSearching);
+  const searchError = useKarmelStore((s) => s.searchError);
   const followUser = useKarmelStore((s) => s.followUser);
   const unfollowUser = useKarmelStore((s) => s.unfollowUser);
 
@@ -129,6 +130,11 @@ export default function FriendsDiscovery({ isOpen, onClose }: FriendsDiscoveryPr
                 Private profiles only appear when you know the exact username.
               </p>
             </div>
+          ) : showResults && searchError ? (
+            <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+              <p className="text-sm text-rose-200">Could not search students.</p>
+              <p className="mt-2 text-xs text-white/45">{searchError}</p>
+            </div>
           ) : showResults && searchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
               <p className="text-sm text-white/50">No students found matching that name</p>
@@ -150,7 +156,7 @@ export default function FriendsDiscovery({ isOpen, onClose }: FriendsDiscoveryPr
                       onClick={() => handleOpenProfile(user)}
                       className="flex w-full items-center gap-3 text-left transition hover:opacity-90"
                     >
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
                         <img src={avatarOption.image} alt={user.full_name} className="h-full w-full object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
