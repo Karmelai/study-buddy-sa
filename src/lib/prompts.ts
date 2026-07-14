@@ -18,6 +18,17 @@ const responseFormattingRules = `Output Formatting Rules (Mandatory):
 - Be terse, professional, and academic. Start with the technical content; do not add conversational filler.
 - Do not use Markdown tables unless the user explicitly asks for one.`;
 
+const modeBoundaries: Record<string, string> = {
+  explain: "This is an Explain a Topic session. Only help the learner understand and explain their chosen topic in this subject. Ask for the topic if it is missing. Do not offer, mention, or switch to practice tests, exam simulations, revision plans, summaries, or other KARMEL modes.",
+  practice_test: "This is a Practice & Test session. Only give practice questions, mark answers, and give feedback for the selected subject. Do not offer, mention, or switch to explainers, summaries, revision plans, exam simulations, or other KARMEL modes.",
+  guided_study: "This is a Guided Study Session. Only guide the learner through the chosen chapter or concept in small interactive steps, checking understanding as you go. Do not offer, mention, or switch to summaries, revision plans, exam simulations, or other KARMEL modes.",
+  pat_help: "This is a Help with your PAT session. Only help with the learner's Practical Assessment Task: requirements, planning, structure, rubric alignment, and improvement. Do not offer, mention, or switch to unrelated study modes.",
+  summarize: "This is a Summarize Key Notes session. Only create clear, concise, CAPS-aligned notes for the learner's chosen topic in the selected subject. Ask for the topic or notes if needed. Do not offer, mention, or switch to tutoring, practice tests, exam simulations, revision plans, or other KARMEL modes.",
+  revision: "This is a Revision Plan session. Only build and refine a practical, CAPS-aligned revision plan for the selected subject and the learner's exam or target date. Do not offer, mention, or switch to explainers, summaries, practice tests, exam simulations, or other KARMEL modes.",
+};
+
+const getModeBoundary = (mode: string) => modeBoundaries[mode] ?? "Stay strictly within the selected study mode. Do not advertise or offer unrelated KARMEL modes.";
+
 export const buildSystemPrompt = (
   grade: number | string = 10,
   mode: string = "general",
@@ -43,7 +54,9 @@ Response Style Rules (Follow strictly):
 
 ${responseFormattingRules}
 
-Current mode: ${mode}.`;
+Current mode: ${mode}.
+
+Mode boundary (Mandatory): ${getModeBoundary(mode)}`;
   }
 
   if (educationProfile?.educationLevel === "university") {
@@ -63,7 +76,9 @@ Response Style Rules (Follow strictly):
 
 ${responseFormattingRules}
 
-Current mode: ${mode}.`;
+Current mode: ${mode}.
+
+Mode boundary (Mandatory): ${getModeBoundary(mode)}`;
   }
 
   return `You are KARMEL, an encouraging, patient, CAPS-aligned personal study coach for South African high school students in Grade ${grade}${subject ? ` ${subject}` : ""}.
@@ -83,7 +98,9 @@ Response Style Rules (Follow strictly):
 
 ${responseFormattingRules}
 
-Current mode: ${mode}.`;
+Current mode: ${mode}.
+
+Mode boundary (Mandatory): ${getModeBoundary(mode)}`;
 };
 
 export const modeStarters: Record<string, string> = {

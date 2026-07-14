@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const MODEL = "gemini-3.1-flash-lite-preview";
+const MODEL = "gemini-3.1-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`;
 const BUCKET = "past-papers";
 const corsHeaders = {
@@ -21,6 +21,7 @@ type GeminiRequestBody = {
 
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const PHOTO_INSTRUCTION = "A student-submitted photo is attached. Read and inspect it carefully. Answer the student's request using the visible work, handwriting, diagrams, and text. If any part is unclear, say exactly what is unreadable and ask for a clearer crop or photo. Do not claim that you cannot view images.";
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   Response.json(body, {
@@ -41,6 +42,15 @@ const toBase64 = (bytes: Uint8Array) => {
     binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
   }
   return btoa(binary);
+};
+
+const isValidBase64 = (value: string) => {
+  try {
+    atob(value);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const GUIDED_STUDY_RULES = `You are KARMEL, a helpful high-school mathematics tutor.
@@ -104,6 +114,7 @@ serve(async (req) => {
     const imageData = toTrimmedString(payload.image_data);
     const imageMimeType = toTrimmedString(payload.image_mime_type).toLowerCase();
     const documentParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+    let photoPart: { inlineData: { mimeType: string; data: string } } | undefined;
 
     if (imageData || imageMimeType) {
       if (!imageData || !SUPPORTED_IMAGE_TYPES.has(imageMimeType)) {
@@ -112,7 +123,10 @@ serve(async (req) => {
       if (imageData.length > Math.ceil(MAX_IMAGE_BYTES * 4 / 3)) {
         return json({ error: "The photo is too large. Please choose an image smaller than 5 MB." }, { status: 413 });
       }
-      documentParts.push({ inlineData: { mimeType: imageMimeType, data: imageData } });
+      if (!isValidBase64(imageData)) {
+        return json({ error: "The uploaded photo could not be read. Please try another image." }, { status: 400 });
+      }
+      photoPart = { inlineData: { mimeType: imageMimeType, data: imageData } };
     }
 
     if (paperMode) {
@@ -174,8 +188,15 @@ serve(async (req) => {
         contents: [{
           role: "user",
           parts: paperMode
-            ? [{ text: "Attached are the examination paper and official marking memo. A student photo may also be attached; use the paper and memo as the source of truth." }, ...documentParts, { text: prompt }]
-            : [...documentParts, { text: prompt }],
+            ? [
+              { text: "Attached are the examination paper and official marking memo. Use them as the source of truth." },
+              ...documentParts,
+              ...(photoPart ? [photoPart, { text: PHOTO_INSTRUCTION }] : []),
+              { text: prompt },
+            ]
+            : photoPart
+              ? [photoPart, { text: PHOTO_INSTRUCTION }, { text: prompt }]
+              : [{ text: prompt }],
         }],
         generationConfig: { temperature: 0.6 },
       }),

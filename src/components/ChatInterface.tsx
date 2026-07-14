@@ -143,6 +143,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
   const activeStudyMode = useKarmelStore((state) => state.activeStudyMode);
   const [input, setInput] = useState("");
   const [image, setImage] = useState<ImageAttachment | null>(null);
+  const [viewingImage, setViewingImage] = useState<ImageAttachment | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,6 +175,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
     setError(null);
     setInput("");
     setImage(null);
+    setViewingImage(null);
     setMessages(paperMode ? [{ role: "system", content: systemMessage }] : [
       { role: "system", content: systemMessage },
       { role: "assistant", content: initialMessage(mode, studentName, subject) },
@@ -184,8 +186,12 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [loading, messages]);
 
-  const sendMessage = useCallback(async (rawText: unknown, hideUserMessage = false) => {
-    const attachedImage = image;
+  const sendMessage = useCallback(async (
+    rawText: unknown,
+    hideUserMessage = false,
+    explicitImage?: ImageAttachment,
+  ) => {
+    const attachedImage = explicitImage ?? image;
     const typedText = messageText(rawText).trim();
     const text = typedText || (attachedImage ? "Please read and help me with the attached photo." : "");
     if (!text || loading) return;
@@ -292,7 +298,9 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
           return <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
             {message.role === "user" ? (
               <div className="max-w-[80%] space-y-2 rounded-2xl bg-white px-4 py-2 text-sm text-black">
-                {message.image && <img src={imageSource(message.image)} alt="Photo sent for AI review" className="max-h-64 rounded-lg object-contain" />}
+                {message.image && <button type="button" onClick={() => setViewingImage(message.image ?? null)} className="block max-w-full rounded-lg outline-none focus:ring-2 focus:ring-black/40" aria-label="View sent photo">
+                  <img src={imageSource(message.image)} alt="Photo sent for AI review" className="max-h-64 rounded-lg object-contain" />
+                </button>}
                 {content && <p>{content}</p>}
               </div>
             ) : (
@@ -314,6 +322,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
         {image && <div className="mx-auto mb-2 flex max-w-3xl items-center gap-3 rounded-xl border border-white/15 bg-white/5 p-2">
           <img src={imageSource(image)} alt="Photo ready to send" className="h-16 w-16 rounded-lg object-cover" />
           <p className="flex-1 text-xs text-white/70">Photo ready to send</p>
+          <button type="button" onClick={() => void sendMessage("", false, image)} disabled={loading} className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-black disabled:opacity-50">Send photo</button>
           <button type="button" onClick={() => setImage(null)} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Remove photo"><X size={16} /></button>
         </div>}
         <div className="mx-auto flex max-w-3xl items-end gap-2">
@@ -327,6 +336,12 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
           <button type="button" onClick={() => void sendMessage(input)} disabled={loading || (!input.trim() && !image)} className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-black disabled:opacity-30" aria-label="Send message"><Send size={16} /></button>
         </div>
       </div>
+      {viewingImage && <div role="dialog" aria-modal="true" aria-label="Sent photo" onClick={() => setViewingImage(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+        <div className="relative max-h-full max-w-full" onClick={(event) => event.stopPropagation()}>
+          <img src={imageSource(viewingImage)} alt="Sent photo" className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain" />
+          <button type="button" onClick={() => setViewingImage(null)} className="absolute -right-3 -top-3 rounded-full bg-white p-2 text-black shadow-lg" aria-label="Close photo"><X size={18} /></button>
+        </div>
+      </div>}
     </div>
   );
 }
