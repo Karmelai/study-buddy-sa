@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
-import { Check, LockKeyhole, Menu, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { BookOpen, Check, ChevronDown, CircleHelp, Clock3, FileText, Heart, LockKeyhole, Menu, Scale, X } from "lucide-react";
 import { AVATAR_OPTIONS, DEFAULT_AVATAR_ID, getAvatarOption, type AvatarId } from "@/lib/avatars";
 import { getJourneyRewardForAvatar } from "@/lib/journey";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
@@ -62,6 +63,10 @@ const formatRemainingTime = (ms: number) => {
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 };
 
+const sameSubjects = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((subject, index) => subject === right[index]);
+
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
   const isAuthed = useKarmelStore((s) => s.isAuthed);
@@ -102,6 +107,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [lastNameChangeTimestamp, setLastNameChangeTimestamp] = useState<number | null>(null);
   const [lastGradeChangeTimestamp, setLastGradeChangeTimestamp] = useState<number | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isMobileStudyOpen, setIsMobileStudyOpen] = useState(false);
+  const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   const availableSubjects = getSubjectConfigForGrade(grade).subjects;
   const isNameCooldownActive = Boolean(
@@ -128,6 +137,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const selectedAvatar = getAvatarOption(avatarId);
   const hasGradeChanged = draftGrade !== grade;
   const isUniversityStudent = educationLevel === "university";
+  const isStudyActive = ["/study", "/timer", "/papers"].includes(pathname);
+  const isAboutActive = ["/how-it-works", "/our-story", "/terms"].includes(pathname);
 
   useEffect(() => {
     if (!isAuthed && pathname !== "/auth") {
@@ -137,77 +148,59 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setIsMobileNavOpen(false);
+    setIsMobileStudyOpen(false);
+    setIsMobileAboutOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMobileNavOpen(false);
+      mobileMenuButtonRef.current?.focus();
+    };
+    document.body.style.overflow = "hidden";
+    mobileNavRef.current?.focus();
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileNavOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(PROFILE_SETTINGS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as {
-          name?: string;
-          subjects?: string[];
-          grade?: number;
-          lastNameChangeTimestamp?: number | null;
-          lastGradeChangeTimestamp?: number | null;
-        };
-        setDraftName(parsed.name ?? studentName);
-        setDraftSubjects(parsed.subjects ?? subjects);
-        setDraftGrade(parsed.grade ?? grade);
-        setDraftAvatarId((parsed as { avatarId?: AvatarId }).avatarId ?? avatarId);
-        setDraftInstitutionName(
-          (parsed as { institutionName?: string }).institutionName ?? institutionName ?? "",
-        );
-        setDraftCourseOfStudy(
-          (parsed as { courseOfStudy?: string }).courseOfStudy ?? courseOfStudy ?? "",
-        );
-        setDraftYearOfStudy((parsed as { yearOfStudy?: string }).yearOfStudy ?? yearOfStudy ?? "");
-        setLastNameChangeTimestamp(parsed.lastNameChangeTimestamp ?? null);
-        setLastGradeChangeTimestamp(parsed.lastGradeChangeTimestamp ?? null);
-      } else {
-        setDraftName(studentName);
-        setDraftSubjects(subjects);
-        setDraftGrade(grade);
-        setDraftAvatarId(avatarId);
-        setDraftInstitutionName(institutionName ?? "");
-        setDraftCourseOfStudy(courseOfStudy ?? "");
-        setDraftYearOfStudy(yearOfStudy ?? "");
-        setLastNameChangeTimestamp(null);
-        setLastGradeChangeTimestamp(null);
-      }
+      const parsed = stored ? JSON.parse(stored) as {
+        lastNameChangeTimestamp?: number | null;
+        lastGradeChangeTimestamp?: number | null;
+      } : null;
+      setLastNameChangeTimestamp(parsed?.lastNameChangeTimestamp ?? null);
+      setLastGradeChangeTimestamp(parsed?.lastGradeChangeTimestamp ?? null);
     } catch {
-      setDraftName(studentName);
-      setDraftSubjects(subjects);
-      setDraftGrade(grade);
-      setDraftAvatarId(avatarId);
-      setDraftInstitutionName(institutionName ?? "");
-      setDraftCourseOfStudy(courseOfStudy ?? "");
-      setDraftYearOfStudy(yearOfStudy ?? "");
+      setLastNameChangeTimestamp(null);
+      setLastGradeChangeTimestamp(null);
     }
-  }, [studentName, subjects, grade, avatarId, institutionName, courseOfStudy, yearOfStudy]);
+    setDraftName(studentName);
+    setDraftSubjects(subjects);
+    setDraftGrade(grade);
+    setDraftAvatarId(avatarId);
+    setDraftIsPublic(is_public);
+    setDraftInstitutionName(institutionName ?? "");
+    setDraftCourseOfStudy(courseOfStudy ?? "");
+    setDraftYearOfStudy(yearOfStudy ?? "");
+  }, [studentName, subjects, grade, avatarId, is_public, institutionName, courseOfStudy, yearOfStudy]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const payload = {
-      name: draftName,
-      subjects: draftSubjects,
-      grade: draftGrade,
-      avatarId: draftAvatarId,
-      institutionName: draftInstitutionName,
-      courseOfStudy: draftCourseOfStudy,
-      yearOfStudy: draftYearOfStudy,
       lastNameChangeTimestamp,
       lastGradeChangeTimestamp,
     };
     window.localStorage.setItem(PROFILE_SETTINGS_KEY, JSON.stringify(payload));
   }, [
-    draftName,
-    draftSubjects,
-    draftGrade,
-    draftAvatarId,
-    draftInstitutionName,
-    draftCourseOfStudy,
-    draftYearOfStudy,
     lastNameChangeTimestamp,
     lastGradeChangeTimestamp,
   ]);
@@ -217,6 +210,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
       !isNameCooldownActive && hasNameChanged ? draftName.trim() || "Student" : studentName;
     const nextGrade = !isGradeCooldownActive && hasGradeChanged ? draftGrade : grade;
     const nextSubjects = draftSubjects.filter(Boolean);
+    const subjectsChanged = !sameSubjects(nextSubjects, subjects);
+    const nextYearOfStudy = draftYearOfStudy.trim();
+    const nextInstitutionName = draftInstitutionName.trim();
+    const nextCourseOfStudy = draftCourseOfStudy.trim();
 
     if (!isNameCooldownActive && hasNameChanged) {
       setLastNameChangeTimestamp(Date.now());
@@ -228,27 +225,34 @@ export default function AppShell({ children }: { children: ReactNode }) {
     setProfileSaveError(null);
 
     if (isUniversityStudent) {
-      const result = await updateAcademicProfile({
-        yearOfStudy: draftYearOfStudy,
-        institutionName: draftInstitutionName,
-        courseOfStudy: draftCourseOfStudy,
-        subjects: nextSubjects,
-      });
-      if (!result.ok) {
-        setProfileSaveError(result.error ?? "Could not save academic profile changes.");
-        return;
+      const academicUpdates = {
+        ...(nextYearOfStudy !== (yearOfStudy ?? "") ? { yearOfStudy: draftYearOfStudy } : {}),
+        ...(nextInstitutionName !== (institutionName ?? "") ? { institutionName: draftInstitutionName } : {}),
+        ...(nextCourseOfStudy !== (courseOfStudy ?? "") ? { courseOfStudy: draftCourseOfStudy } : {}),
+        ...(subjectsChanged ? { subjects: nextSubjects } : {}),
+      };
+      if (Object.keys(academicUpdates).length > 0) {
+        const result = await updateAcademicProfile(academicUpdates);
+        if (!result.ok) {
+          setProfileSaveError(result.error ?? "Could not save academic profile changes.");
+          return;
+        }
       }
     }
 
     if (draftIsPublic !== is_public) await updatePrivacySettings(draftIsPublic);
 
-    setStudent(nextName, isUniversityStudent ? undefined : nextGrade);
-    const avatarResult = await setAvatar(draftAvatarId);
-    if (!avatarResult.ok) {
-      setProfileSaveError(avatarResult.error ?? "This sticker is still locked.");
-      return;
+    if ((!isNameCooldownActive && hasNameChanged) || (!isUniversityStudent && !isGradeCooldownActive && hasGradeChanged)) {
+      setStudent(nextName, isUniversityStudent ? undefined : nextGrade);
     }
-    if (!isUniversityStudent) setSubjects(nextSubjects);
+    if (draftAvatarId !== avatarId) {
+      const avatarResult = await setAvatar(draftAvatarId);
+      if (!avatarResult.ok) {
+        setProfileSaveError(avatarResult.error ?? "This sticker is still locked.");
+        return;
+      }
+    }
+    if (!isUniversityStudent && subjectsChanged) setSubjects(nextSubjects);
     setIsProfileOpen(false);
   };
 
@@ -274,33 +278,43 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (!isAuthed) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground flex flex-col">
-      <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 backdrop-blur">
+    <div className="appearance-page-canvas h-screen overflow-hidden bg-background text-foreground flex flex-col">
+      <header className={`sticky top-0 z-30 shrink-0 border-b border-border bg-background/95 ${theme === "dark-academia" || theme === "midnight-london" ? "" : "backdrop-blur"}`}>
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="font-semibold tracking-wide text-lg">
             KARMEL
           </Link>
-          <nav className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
+          <nav className="hidden items-center gap-1 text-sm text-muted-foreground md:flex" aria-label="Main navigation">
             <Link
               to="/"
-              activeProps={{ className: "text-foreground" }}
+              activeProps={{ className: "bg-accent text-foreground" }}
               activeOptions={{ exact: true }}
+              className="rounded-lg px-3 py-2 transition hover:bg-accent hover:text-foreground"
             >
               Home
             </Link>
-            <Link to="/study" activeProps={{ className: "text-foreground" }}>
-              Study
-            </Link>
-            <Link to="/timer" activeProps={{ className: "text-foreground" }}>
-              Timer
-            </Link>
-            <Link to="/journey" activeProps={{ className: "text-foreground" }}>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 transition hover:bg-accent hover:text-foreground ${isStudyActive ? "bg-accent text-foreground" : ""}`}>
+                Study <ChevronDown size={14} aria-hidden="true" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="start" sideOffset={8} className="z-50 w-80 rounded-2xl border border-border bg-popover/95 p-2 text-popover-foreground shadow-xl shadow-black/20 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 motion-reduce:animate-none">
+                  <DropdownMenu.Item asChild>
+                    <Link to="/study" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><BookOpen className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">Study a Subject</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Get guided AI help with any subject or topic.</span></span></Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link to="/timer" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><Clock3 className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">Timer</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Complete focused study sessions and earn XP.</span></span></Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link to="/papers" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><FileText className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">Past Papers</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Practise CAPS past papers from Grades 8–12.</span></span></Link>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <Link to="/journey" activeProps={{ className: "bg-accent text-foreground" }} className="rounded-lg px-3 py-2 transition hover:bg-accent hover:text-foreground">
               Journey
             </Link>
-            <Link to="/papers" activeProps={{ className: "text-foreground" }}>
-              Past Papers
-            </Link>
-            <Link to="/friends" activeProps={{ className: "text-foreground" }} className="relative">
+            <Link to="/friends" activeProps={{ className: "bg-accent text-foreground" }} className="relative rounded-lg px-3 py-2 transition hover:bg-accent hover:text-foreground">
               Friends
               {pendingIncomingRequests.length > 0 ? (
                 <span className="absolute -right-3 -top-2 min-w-5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-black">
@@ -308,14 +322,33 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </span>
               ) : null}
             </Link>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 transition hover:bg-accent hover:text-foreground ${isAboutActive ? "bg-accent text-foreground" : ""}`}>
+                About <ChevronDown size={14} aria-hidden="true" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="end" sideOffset={8} className="z-50 w-80 rounded-2xl border border-border bg-popover/95 p-2 text-popover-foreground shadow-xl shadow-black/20 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 motion-reduce:animate-none">
+                  <DropdownMenu.Item asChild>
+                    <Link to="/how-it-works" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><CircleHelp className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">How It Works</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Learn how Karmel helps students study, practise, and improve.</span></span></Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link to="/our-story" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><Heart className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">Our Story</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Discover the inspiration and journey behind Karmel.</span></span></Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link to="/terms" className="flex cursor-pointer items-start gap-3 rounded-xl p-3 outline-none transition hover:bg-accent focus:bg-accent"><Scale className="mt-0.5 shrink-0 text-primary" size={17} /><span><span className="block text-sm font-medium">Terms &amp; Conditions</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Read the rules and conditions for using the platform.</span></span></Link>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </nav>
           <div className="relative flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsMobileNavOpen((open) => !open)}
-              className="inline-flex h-10 w-10 items-center justify-center text-foreground transition hover:text-muted-foreground sm:hidden"
+              ref={mobileMenuButtonRef}
+              className="inline-flex h-10 w-10 items-center justify-center text-foreground transition hover:text-muted-foreground md:hidden"
               aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
-              aria-haspopup="menu"
+              aria-haspopup="dialog"
               aria-expanded={isMobileNavOpen}
             >
               {isMobileNavOpen ? <X size={16} /> : <Menu size={16} />}
@@ -339,12 +372,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
               )}
             </button>
             <div
-              className={`absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-border bg-popover/95 text-popover-foreground shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 sm:hidden ${
+              ref={mobileNavRef}
+              tabIndex={-1}
+              className={`fixed inset-x-4 top-[4.75rem] z-40 max-h-[calc(100dvh-5.75rem)] overflow-y-auto rounded-2xl border border-border bg-popover/95 text-popover-foreground shadow-2xl shadow-black/50 backdrop-blur-xl transition-all duration-200 md:hidden ${
                 isMobileNavOpen
                   ? "pointer-events-auto translate-y-0 opacity-100"
                   : "pointer-events-none -translate-y-2 opacity-0"
               }`}
-              role="menu"
+              role="dialog"
+              aria-modal="true"
               aria-label="Mobile navigation"
             >
               <div className="border-b border-border px-4 py-3">
@@ -362,22 +398,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 >
                   Home
                 </Link>
-                <Link
-                  to="/study"
-                  activeProps={{ className: "bg-white/10 text-white" }}
-                  onClick={() => setIsMobileNavOpen(false)}
-                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
-                >
-                  Study
-                </Link>
-                <Link
-                  to="/timer"
-                  activeProps={{ className: "bg-white/10 text-white" }}
-                  onClick={() => setIsMobileNavOpen(false)}
-                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
-                >
-                  Timer
-                </Link>
+                <button type="button" onClick={() => setIsMobileStudyOpen((open) => !open)} className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/10 ${isStudyActive ? "bg-white/10 text-white" : ""}`} aria-expanded={isMobileStudyOpen}>
+                  Study <ChevronDown size={16} className={`transition-transform ${isMobileStudyOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                </button>
+                {isMobileStudyOpen ? <div className="ml-3 border-l border-border pl-2">
+                  <Link to="/study" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><BookOpen size={15} />Study a Subject</Link>
+                  <Link to="/timer" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><Clock3 size={15} />Timer</Link>
+                  <Link to="/papers" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><FileText size={15} />Past Papers</Link>
+                </div> : null}
                 <Link
                   to="/journey"
                   activeProps={{ className: "bg-white/10 text-white" }}
@@ -387,14 +415,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   Journey
                 </Link>
                 <Link
-                  to="/papers"
-                  activeProps={{ className: "bg-white/10 text-white" }}
-                  onClick={() => setIsMobileNavOpen(false)}
-                  className="rounded-xl px-3 py-3 transition hover:bg-white/10"
-                >
-                  Past Papers
-                </Link>
-                <Link
                   to="/friends"
                   activeProps={{ className: "bg-white/10 text-white" }}
                   onClick={() => setIsMobileNavOpen(false)}
@@ -402,6 +422,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 >
                   Friends
                 </Link>
+                <button type="button" onClick={() => setIsMobileAboutOpen((open) => !open)} className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/10 ${isAboutActive ? "bg-white/10 text-white" : ""}`} aria-expanded={isMobileAboutOpen}>
+                  About <ChevronDown size={16} className={`transition-transform ${isMobileAboutOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                </button>
+                {isMobileAboutOpen ? <div className="ml-3 border-l border-border pl-2">
+                  <Link to="/how-it-works" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><CircleHelp size={15} />How It Works</Link>
+                  <Link to="/our-story" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><Heart size={15} />Our Story</Link>
+                  <Link to="/terms" onClick={() => setIsMobileNavOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition hover:bg-white/10"><Scale size={15} />Terms &amp; Conditions</Link>
+                </div> : null}
               </div>
             </div>
           </div>
@@ -537,10 +565,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                                     ]
                                   }
                                 </span>
-                                <span
-                                  className={`appearance-preview appearance-preview-${option}`}
-                                  aria-hidden="true"
-                                />
                               </>
                             ) : null}
                             {selected ? (

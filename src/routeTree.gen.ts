@@ -10,9 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TimerRouteImport } from './routes/timer'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StudyRouteImport } from './routes/study'
 import { Route as PapersRouteImport } from './routes/papers'
+import { Route as OurStoryRouteImport } from './routes/our-story'
 import { Route as JourneyRouteImport } from './routes/journey'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,6 +23,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TimerRoute = TimerRouteImport.update({
   id: '/timer',
   path: '/timer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudyRoute = StudyRouteImport.update({
@@ -32,9 +40,19 @@ const PapersRoute = PapersRouteImport.update({
   path: '/papers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OurStoryRoute = OurStoryRouteImport.update({
+  id: '/our-story',
+  path: '/our-story',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JourneyRoute = JourneyRouteImport.update({
   id: '/journey',
   path: '/journey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FriendsRoute = FriendsRouteImport.update({
@@ -57,18 +75,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/terms': typeof TermsRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/terms': typeof TermsRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRoutesById {
@@ -76,25 +100,50 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/friends': typeof FriendsRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
   '/study': typeof StudyRoute
+  '/terms': typeof TermsRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/friends' | '/journey' | '/papers' | '/study' | '/timer'
+    | '/'
+    | '/auth'
+    | '/friends'
+    | '/how-it-works'
+    | '/journey'
+    | '/our-story'
+    | '/papers'
+    | '/study'
+    | '/terms'
+    | '/timer'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/friends' | '/journey' | '/papers' | '/study' | '/timer'
+  to:
+    | '/'
+    | '/auth'
+    | '/friends'
+    | '/how-it-works'
+    | '/journey'
+    | '/our-story'
+    | '/papers'
+    | '/study'
+    | '/terms'
+    | '/timer'
   id:
     | '__root__'
     | '/'
     | '/auth'
     | '/friends'
+    | '/how-it-works'
     | '/journey'
+    | '/our-story'
     | '/papers'
     | '/study'
+    | '/terms'
     | '/timer'
   fileRoutesById: FileRoutesById
 }
@@ -102,9 +151,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   FriendsRoute: typeof FriendsRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   JourneyRoute: typeof JourneyRoute
+  OurStoryRoute: typeof OurStoryRoute
   PapersRoute: typeof PapersRoute
   StudyRoute: typeof StudyRoute
+  TermsRoute: typeof TermsRoute
   TimerRoute: typeof TimerRoute
 }
 
@@ -115,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/timer'
       fullPath: '/timer'
       preLoaderRoute: typeof TimerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/study': {
@@ -131,11 +190,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PapersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/our-story': {
+      id: '/our-story'
+      path: '/our-story'
+      fullPath: '/our-story'
+      preLoaderRoute: typeof OurStoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/journey': {
       id: '/journey'
       path: '/journey'
       fullPath: '/journey'
       preLoaderRoute: typeof JourneyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/friends': {
@@ -166,9 +239,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   FriendsRoute: FriendsRoute,
+  HowItWorksRoute: HowItWorksRoute,
   JourneyRoute: JourneyRoute,
+  OurStoryRoute: OurStoryRoute,
   PapersRoute: PapersRoute,
   StudyRoute: StudyRoute,
+  TermsRoute: TermsRoute,
   TimerRoute: TimerRoute,
 }
 export const routeTree = rootRouteImport

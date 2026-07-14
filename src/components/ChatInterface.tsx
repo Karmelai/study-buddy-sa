@@ -3,8 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { Mic, Send, SkipForward, Volume2 } from "lucide-react";
-import { callAI, createPaperRequest, type ChatMessage, type PaperMode } from "@/lib/ai";
+import { Camera, Mic, Send, SkipForward, Volume2, X } from "lucide-react";
+import { callAI, createPaperRequest, type ChatMessage, type ImageAttachment, type PaperMode } from "@/lib/ai";
 import { buildSystemPrompt, modeStarters } from "@/lib/prompts";
 import { useKarmelStore } from "@/store/useKarmelStore";
 
@@ -68,6 +68,39 @@ const normaliseMathDelimiters = (content: string) => content
   })
   .join("");
 
+const MAX_IMAGE_EDGE = 1280;
+
+const prepareImage = async (file: File): Promise<ImageAttachment> => {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a photo smaller than 10 MB.");
+
+  const source = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("We couldn't read that photo."));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const preview = new Image();
+    preview.onerror = () => reject(new Error("We couldn't open that photo."));
+    preview.onload = () => resolve(preview);
+    preview.src = source;
+  });
+  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("We couldn't prepare that photo.");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+  const data = dataUrl.split(",")[1];
+  if (!data || data.length > Math.ceil(5 * 1024 * 1024 * 4 / 3)) throw new Error("That photo is still too large. Please crop it and try again.");
+  return { data, mimeType: "image/jpeg" };
+};
+
+const imageSource = (image: ImageAttachment) => `data:${image.mimeType};base64,${image.data}`;
+
 const initialMessage = (mode: string, name: string, subject?: string) => {
   const subjectText = subject ? ` ${subject}` : "";
   const starters: Record<string, string> = {
@@ -109,6 +142,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
   const activePaper = useKarmelStore((state) => state.activePaper);
   const activeStudyMode = useKarmelStore((state) => state.activeStudyMode);
   const [input, setInput] = useState("");
+  const [image, setImage] = useState<ImageAttachment | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +150,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const initializedSessionRef = useRef<string | null>(null);
 
   const systemMessage = useMemo(() => {
@@ -138,6 +173,7 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
     initializedSessionRef.current = null;
     setError(null);
     setInput("");
+    setImage(null);
     setMessages(paperMode ? [{ role: "system", content: systemMessage }] : [
       { role: "system", content: systemMessage },
       { role: "assistant", content: initialMessage(mode, studentName, subject) },
@@ -149,7 +185,9 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
   }, [loading, messages]);
 
   const sendMessage = useCallback(async (rawText: unknown, hideUserMessage = false) => {
-    const text = messageText(rawText).trim();
+    const attachedImage = image;
+    const typedText = messageText(rawText).trim();
+    const text = typedText || (attachedImage ? "Please read and help me with the attached photo." : "");
     if (!text || loading) return;
 
     if (paperMode && !paperRequest) {
@@ -159,14 +197,15 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
 
     setError(null);
     setInput("");
-    const userMessage: ChatMessage = { role: "user", content: text };
+    setImage(null);
+    const userMessage: ChatMessage = { role: "user", content: text, ...(attachedImage ? { image: attachedImage } : {}) };
     const requestMessages = [...messages, userMessage];
     const displayMessages = hideUserMessage ? messages : requestMessages;
     if (!hideUserMessage) setMessages(requestMessages);
     setLoading(true);
 
     try {
-      const reply = await callAI(requestMessages, studentName, mode, paperRequest);
+      const reply = await callAI(requestMessages, studentName, mode, paperRequest, attachedImage ?? undefined);
       setMessages([...displayMessages, { role: "assistant", content: messageText(reply) }]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Something went wrong while contacting KARMEL.");
@@ -174,6 +213,18 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
       setLoading(false);
     }
   }, [loading, messages, mode, paperMode, paperRequest, studentName]);
+
+  const selectImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      setError(null);
+      setImage(await prepareImage(file));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We couldn't prepare that photo.");
+    }
+  };
 
   useEffect(() => {
     if (!paperMode || initializedSessionRef.current === mode || messages.length !== 1 || loading) return;
@@ -240,7 +291,10 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
           const renderedContent = normaliseMathDelimiters(content);
           return <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
             {message.role === "user" ? (
-              <div className="max-w-[80%] rounded-2xl bg-white px-4 py-2 text-sm text-black">{content}</div>
+              <div className="max-w-[80%] space-y-2 rounded-2xl bg-white px-4 py-2 text-sm text-black">
+                {message.image && <img src={imageSource(message.image)} alt="Photo sent for AI review" className="max-h-64 rounded-lg object-contain" />}
+                {content && <p>{content}</p>}
+              </div>
             ) : (
               <div className="max-w-[85%] space-y-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm shadow-sm [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-1">
@@ -257,13 +311,20 @@ export default function ChatInterface({ mode, subject, contextNote }: Props) {
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
       <div className="shrink-0 p-3">
+        {image && <div className="mx-auto mb-2 flex max-w-3xl items-center gap-3 rounded-xl border border-white/15 bg-white/5 p-2">
+          <img src={imageSource(image)} alt="Photo ready to send" className="h-16 w-16 rounded-lg object-cover" />
+          <p className="flex-1 text-xs text-white/70">Photo ready to send</p>
+          <button type="button" onClick={() => setImage(null)} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Remove photo"><X size={16} /></button>
+        </div>}
         <div className="mx-auto flex max-w-3xl items-end gap-2">
+          <input ref={imageInputRef} type="file" accept="image/*" capture="environment" onChange={(event) => void selectImage(event)} className="sr-only" />
+          <button type="button" onClick={() => imageInputRef.current?.click()} disabled={loading} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white disabled:opacity-30" aria-label="Take or upload a photo"><Camera size={17} /></button>
           <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(input); }
           }} rows={1} placeholder={canSkip ? "Answer, type Skip, or ask for the memo…" : "Type your message…"} className="flex-1 resize-none rounded-xl border border-white/15 bg-transparent px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/40 focus:outline-none" />
           <button type="button" onClick={toggleDictation} className={`flex h-11 w-11 items-center justify-center rounded-xl border ${isListening ? "border-red-400 bg-red-500" : "border-white/15 bg-white/10"}`} aria-label={isListening ? "Stop listening" : "Start voice dictation"}><Mic size={16} /></button>
           {canSkip && <button type="button" onClick={() => void sendMessage("Skip this question and present the next question.")} disabled={loading} className="flex h-11 items-center gap-1 rounded-xl border border-white/15 bg-white/10 px-3 text-sm text-white disabled:opacity-30"><SkipForward size={16} />Skip</button>}
-          <button type="button" onClick={() => void sendMessage(input)} disabled={loading || !input.trim()} className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-black disabled:opacity-30" aria-label="Send message"><Send size={16} /></button>
+          <button type="button" onClick={() => void sendMessage(input)} disabled={loading || (!input.trim() && !image)} className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-black disabled:opacity-30" aria-label="Send message"><Send size={16} /></button>
         </div>
       </div>
     </div>

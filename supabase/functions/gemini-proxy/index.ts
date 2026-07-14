@@ -15,7 +15,12 @@ type GeminiRequestBody = {
   activeStudyMode?: string;
   pdf_storage_path?: string;
   memo_storage_path?: string;
+  image_data?: string;
+  image_mime_type?: string;
 };
+
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const json = (body: unknown, init: ResponseInit = {}) =>
   Response.json(body, {
@@ -96,7 +101,19 @@ serve(async (req) => {
     const highYieldMode = payload.activeStudyMode === "high_yield";
     const pdfPath = toTrimmedString(payload.pdf_storage_path);
     const memoPath = toTrimmedString(payload.memo_storage_path);
+    const imageData = toTrimmedString(payload.image_data);
+    const imageMimeType = toTrimmedString(payload.image_mime_type).toLowerCase();
     const documentParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+
+    if (imageData || imageMimeType) {
+      if (!imageData || !SUPPORTED_IMAGE_TYPES.has(imageMimeType)) {
+        return json({ error: "Please upload a JPEG, PNG, WebP, HEIC, or HEIF image." }, { status: 400 });
+      }
+      if (imageData.length > Math.ceil(MAX_IMAGE_BYTES * 4 / 3)) {
+        return json({ error: "The photo is too large. Please choose an image smaller than 5 MB." }, { status: 413 });
+      }
+      documentParts.push({ inlineData: { mimeType: imageMimeType, data: imageData } });
+    }
 
     if (paperMode) {
       const authClient = createClient(supabaseUrl, anonKey, {
@@ -157,8 +174,8 @@ serve(async (req) => {
         contents: [{
           role: "user",
           parts: paperMode
-            ? [{ text: "Attached are the examination paper followed by its official marking memo. Use them as the source of truth." }, ...documentParts, { text: prompt }]
-            : [{ text: prompt }],
+            ? [{ text: "Attached are the examination paper and official marking memo. A student photo may also be attached; use the paper and memo as the source of truth." }, ...documentParts, { text: prompt }]
+            : [...documentParts, { text: prompt }],
         }],
         generationConfig: { temperature: 0.6 },
       }),

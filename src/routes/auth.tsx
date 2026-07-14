@@ -120,7 +120,7 @@ function Auth() {
         return;
       }
     }
-    navigate({ to: "/study" });
+    navigate({ to: "/" });
   };
 
   const selectedAvatar = getAvatarOption(selectedAvatarId);
@@ -134,7 +134,7 @@ function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6 pt-16 pb-10 sm:pt-20">
+    <div className="auth-screen min-h-screen bg-black text-white flex flex-col items-center justify-center px-6 pt-16 pb-10 sm:pt-20">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <h1 className="text-2xl font-semibold tracking-wide">KARMEL</h1>

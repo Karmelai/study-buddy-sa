@@ -11,8 +11,8 @@ const ProfileRow = ({ user, isOnline }: { user: SocialProfile; isOnline: boolean
 
   return (
     <div className="relative flex min-h-16 items-center gap-3 overflow-hidden py-3">
-      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/5 ${isOnline ? "ring-1 ring-white/60" : "border border-white/10"}`}>
-        <img src={avatar.image} alt={user.full_name} className="h-full w-full object-cover" />
+      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/5 transition-transform duration-200 ease-out group-hover:rotate-6 group-hover:scale-110 group-active:scale-100 ${isOnline ? "ring-1 ring-white/60" : "border border-white/10"}`}>
+        <img src={avatar.image} alt={user.full_name} className="h-full w-full object-cover transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110" />
         <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-zinc-950 ${isOnline ? "bg-white" : "bg-white/25"}`} aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
@@ -65,19 +65,16 @@ export default function FriendsHub() {
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/35">Friends Network</p>
             <h1 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Manage requests and study friends</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/50">
-              Accept incoming requests, decline the ones you do not know, and keep your study circle clean.
-            </p>
           </div>
           <div className="flex w-full items-center gap-3 sm:w-auto">
-            <span className="min-w-0 flex-1 text-right text-sm text-white/50 sm:flex-none sm:text-left">
+            <span className="friends-count min-w-0 flex-1 text-right text-sm text-white/50 sm:flex-none sm:text-left">
               {friendsList.length} {friendsList.length === 1 ? "friend" : "friends"}
               {pendingIncomingRequests.length > 0 ? ` · ${pendingIncomingRequests.length} pending` : ""}
             </span>
             <button
               type="button"
               onClick={() => setIsDiscoveryOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 bg-white px-3.5 py-2 text-sm font-medium text-black transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-black"
+              className="friends-search-trigger inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 bg-white px-3.5 py-2 text-sm font-medium text-black transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-black"
             >
               <Search size={16} />
               Search friends
@@ -99,12 +96,11 @@ export default function FriendsHub() {
               ) : null}
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className={`mt-4 ${pendingIncomingRequests.length === 0 ? "flex flex-1" : "space-y-3"}`}>
               {pendingIncomingRequests.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center border-y border-dashed border-white/10 px-4 text-center">
+                <div className="flex h-full w-full flex-col items-center justify-center px-4 text-center">
                   <Inbox size={20} className="text-white/35" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-medium text-white/70">No pending requests</p>
-                  <p className="mt-1 text-sm text-white/40">New requests will appear here.</p>
+                  <p className="mt-3 text-sm text-white/45">No pending requests. New requests will appear here.</p>
                 </div>
               ) : (
                 pendingIncomingRequests.map((user) => (
@@ -153,7 +149,7 @@ export default function FriendsHub() {
                     key={user.id}
                     type="button"
                     onClick={() => handleOpenFriendProfile(user)}
-                    className="w-full border-b border-white/10 text-left transition last:border-b-0 hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white/60"
+                    className="group w-full border-b border-white/10 text-left transition-all duration-200 last:border-b-0 hover:translate-x-1 hover:bg-white/[0.06] active:translate-x-0 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white/60"
                   >
                     <ProfileRow user={user} isOnline={onlineUserIds.includes(user.id)} />
                   </button>

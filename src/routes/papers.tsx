@@ -14,6 +14,8 @@ export const Route = createFileRoute("/papers")({
 type PaperStudyMode = "guided" | "exam" | "high_yield";
 
 const EXAM_DURATION_SECONDS = 180 * 60;
+const paperChoiceClass = "text-left rounded-xl border px-4 py-3 text-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-primary/70 hover:bg-accent hover:shadow-lg hover:shadow-primary/10 active:translate-y-0 active:scale-[0.98]";
+const paperModeClass = "group rounded-2xl border border-border bg-card p-4 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-primary/70 hover:bg-accent hover:shadow-xl hover:shadow-primary/10 active:translate-y-0 active:scale-[0.985]";
 
 const getPaperDurationMinutes = (paper: PastPaper) => {
   const duration = Number(paper.durationMinutes ?? paper.duration_minutes);
@@ -192,7 +194,7 @@ function Papers() {
             <label className="text-sm text-white/50">Subject</label>
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
               {displaySubjects.map((item) => (
-                <button key={item} onClick={() => selectSubject(item)} className={`text-left px-4 py-3 rounded-xl border text-sm transition ${subject === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary/60 hover:bg-accent"}`}>
+                <button key={item} onClick={() => selectSubject(item)} className={`${paperChoiceClass} ${subject === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>
                   {item}
                 </button>
               ))}
@@ -207,7 +209,7 @@ function Papers() {
                 {loadError && <p className="text-sm text-red-300">{loadError}</p>}
                 {!isLoading && !loadError && papers.length === 0 && <p className="text-sm text-white/50">No papers are available for Grade {grade} {subject} yet.</p>}
                 {papers.map((paper) => (
-                  <button key={paper.id} onClick={() => setPaperForModeSelection(paper)} className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm transition hover:border-primary/60 hover:bg-accent">
+                  <button key={paper.id} onClick={() => setPaperForModeSelection(paper)} className={`${paperChoiceClass} border-border bg-card`}>
                     {getPaperLabel(paper)}
                   </button>
                 ))}
@@ -223,20 +225,20 @@ function Papers() {
             <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Choose a study mode</p>
             <h2 className="mt-2 text-xl font-semibold">{getPaperLabel(paperForModeSelection)}</h2>
             <div className="mt-6 grid gap-3">
-              <button onClick={() => startPaperMode("guided")} className="rounded-2xl border border-border bg-card p-4 text-left transition hover:bg-accent">
-                <FileText className="text-primary" size={20} />
-                <span className="mt-3 block font-medium">Guided Study</span>
-                <span className="mt-1 block text-sm text-muted-foreground">Work through each question with memo-aligned tutoring.</span>
+              <button onClick={() => startPaperMode("guided")} className={paperModeClass}>
+                <FileText className="text-primary transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110" size={20} />
+                <span className="mt-3 block font-medium transition-transform duration-200 group-hover:translate-x-1">Guided Study</span>
+                <span className="mt-1 block text-sm text-muted-foreground transition-transform duration-200 group-hover:translate-x-1">Work through each question with memo-aligned tutoring.</span>
               </button>
-              <button onClick={() => startPaperMode("exam")} className="rounded-2xl border border-border bg-card p-4 text-left transition hover:bg-accent">
-                <Clock3 className="text-primary" size={20} />
-                <span className="mt-3 block font-medium">Exam Simulation</span>
-                <span className="mt-1 block text-sm text-muted-foreground">Write under timed exam conditions based on the paper duration.</span>
+              <button onClick={() => startPaperMode("exam")} className={paperModeClass}>
+                <Clock3 className="text-primary transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110" size={20} />
+                <span className="mt-3 block font-medium transition-transform duration-200 group-hover:translate-x-1">Exam Simulation</span>
+                <span className="mt-1 block text-sm text-muted-foreground transition-transform duration-200 group-hover:translate-x-1">Write under timed exam conditions based on the paper duration.</span>
               </button>
-              <button onClick={() => startPaperMode("high_yield")} className="rounded-2xl border border-border bg-card p-4 text-left transition hover:bg-accent">
-                <Sparkles className="text-primary" size={20} />
-                <span className="mt-3 block font-medium">High Yield Review</span>
-                <span className="mt-1 block text-sm text-muted-foreground">Generate a study sheet from critical questions and the official memo.</span>
+              <button onClick={() => startPaperMode("high_yield")} className={paperModeClass}>
+                <Sparkles className="text-primary transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110" size={20} />
+                <span className="mt-3 block font-medium transition-transform duration-200 group-hover:translate-x-1">High Yield Review</span>
+                <span className="mt-1 block text-sm text-muted-foreground transition-transform duration-200 group-hover:translate-x-1">Generate a study sheet from critical questions and the official memo.</span>
               </button>
             </div>
             <button onClick={() => setPaperForModeSelection(null)} className="mt-5 text-sm text-muted-foreground hover:text-foreground">Cancel</button>

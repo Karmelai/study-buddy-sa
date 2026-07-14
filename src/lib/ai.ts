@@ -1,6 +1,15 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase";
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+export type ImageAttachment = {
+  data: string;
+  mimeType: string;
+};
+
+export type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+  image?: ImageAttachment;
+};
 
 export type PaperMode = "guided" | "exam" | "high_yield";
 
@@ -110,6 +119,7 @@ export async function callAI(
   userName: string = "Student",
   mode: string,
   paperRequest?: PaperRequest,
+  image?: ImageAttachment,
 ): Promise<string> {
   const prompt = formatPrompt(messages, userName);
 
@@ -135,6 +145,7 @@ export async function callAI(
         activeStudyMode: paperRequest.activeStudyMode,
         pdf_storage_path: paperRequest.pdf_storage_path,
         memo_storage_path: paperRequest.memo_storage_path,
+        ...(image ? { image_data: image.data, image_mime_type: image.mimeType } : {}),
       }),
     });
 
@@ -156,7 +167,10 @@ export async function callAI(
       apikey: supabaseAnonKey,
       ...(sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({
+      prompt,
+      ...(image ? { image_data: image.data, image_mime_type: image.mimeType } : {}),
+    }),
   });
 
   if (!response.ok) {

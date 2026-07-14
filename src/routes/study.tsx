@@ -19,6 +19,9 @@ const STUDENT_MODES = [
   { id: "revision", label: "Revision Plan", desc: "Personalized plan up to exam day." },
 ];
 
+const subjectButtonClass = "text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-primary/70 hover:bg-accent hover:shadow-lg hover:shadow-primary/10 active:translate-y-0 active:scale-[0.98]";
+const studyModeCardClass = "group rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-primary/70 hover:bg-accent hover:shadow-xl hover:shadow-primary/10 active:translate-y-0 active:scale-[0.985]";
+
 function Study() {
   const grade = useKarmelStore((s) => s.grade);
   const role = useKarmelStore((s) => s.role);
@@ -97,7 +100,7 @@ function Study() {
                 <button
                   key={s}
                   onClick={() => setSubject(s)}
-                  className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
+                  className={`${subjectButtonClass} ${
                     subject === s
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card hover:border-primary/60 hover:bg-accent"
@@ -113,7 +116,7 @@ function Study() {
                 <button
                   key={s}
                   onClick={() => handleSubjectSelect(s)}
-                  className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
+                  className={`${subjectButtonClass} ${
                     subject === s
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card hover:border-primary/60 hover:bg-accent"
@@ -140,10 +143,10 @@ function Study() {
                 <button
                   key={m.id}
                   onClick={() => setMode(m.id)}
-                  className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/60 hover:bg-accent"
+                  className={studyModeCardClass}
                 >
-                  <h3 className="font-medium">{m.label}</h3>
-                  <p className="text-white/50 text-sm mt-1">{m.desc}</p>
+                  <h3 className="font-medium transition-transform duration-200 group-hover:translate-x-1">{m.label}</h3>
+                  <p className="text-white/50 text-sm mt-1 transition-transform duration-200 group-hover:translate-x-1">{m.desc}</p>
                 </button>
               ))}
             </div>

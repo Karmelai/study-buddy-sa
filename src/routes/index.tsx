@@ -44,6 +44,7 @@ function Home() {
     : "Work through past exam questions one at a time.";
   const nextReward = JOURNEY_REWARDS.find((reward) => reward.unlockLevel > level);
   const journeyProgress = Math.round((xp / xpRequiredForNextLevel(level)) * 100);
+  const dashboardCardClass = "group flex flex-col rounded-2xl border border-border bg-card p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-primary/70 hover:bg-accent hover:shadow-xl hover:shadow-primary/10 active:translate-y-0 active:scale-[0.985] focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6";
 
   return (
     <AppShell>
@@ -56,30 +57,30 @@ function Home() {
         </section>
 
         <section className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Link to="/study" className="group flex min-h-52 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6 md:col-span-2 lg:col-span-3 lg:row-span-2 lg:min-h-0">
-            <BookOpen className="text-white/80" />
-            <div className="mt-auto pt-10 lg:pt-14">
+          <Link to="/study" className={`${dashboardCardClass} min-h-52 md:col-span-2 lg:col-span-3 lg:row-span-2 lg:min-h-0`}>
+            <BookOpen className="text-white/80 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110 group-active:scale-95" />
+            <div className="mt-auto pt-10 transition-transform duration-200 group-hover:translate-x-0.5 lg:pt-14">
               <h3 className="text-lg font-medium">{studyTitle}</h3>
               <p className="mt-2 max-w-md text-sm text-white/50">{studyText}</p>
             </div>
           </Link>
-          <Link to="/timer" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
-            <Clock3 className="text-white/80" />
-            <div className="mt-auto pt-7">
+          <Link to="/timer" className={`${dashboardCardClass} min-h-40`}>
+            <Clock3 className="text-white/80 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110 group-active:scale-95" />
+            <div className="mt-auto pt-7 transition-transform duration-200 group-hover:translate-x-0.5">
               <h3 className="font-medium">Study Timer</h3>
               <p className="mt-1 text-sm text-white/50">Run a focused session with XP and leveling.</p>
             </div>
           </Link>
-          <Link to="/papers" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
-            <FileText className="text-white/80" />
-            <div className="mt-auto pt-7">
+          <Link to="/papers" className={`${dashboardCardClass} min-h-40`}>
+            <FileText className="text-white/80 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110 group-active:scale-95" />
+            <div className="mt-auto pt-7 transition-transform duration-200 group-hover:translate-x-0.5">
               <h3 className="font-medium">{papersTitle}</h3>
               <p className="mt-1 text-sm text-white/50">{papersText}</p>
             </div>
           </Link>
-          <Link to="/journey" className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6">
-            <Map className="text-white/80" />
-            <div className="mt-auto pt-7">
+          <Link to="/journey" className={`${dashboardCardClass} min-h-40`}>
+            <Map className="text-white/80 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110 group-active:scale-95" />
+            <div className="mt-auto pt-7 transition-transform duration-200 group-hover:translate-x-0.5">
               <h3 className="font-medium">Journey</h3>
               <p className="mt-1 text-sm text-white/50">Study, level up, and unlock new stickers.</p>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary" style={{ width: `${journeyProgress}%` }} /></div>
@@ -88,10 +89,10 @@ function Home() {
           </Link>
           <Link
             to="/friends"
-            className="group flex min-h-40 flex-col rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/60 hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/70 focus:ring-offset-2 focus:ring-offset-background sm:p-6 md:col-span-2 lg:col-span-1"
+            className={`${dashboardCardClass} min-h-40 text-left md:col-span-2 lg:col-span-1`}
           >
-            <Users className="text-white/80" />
-            <div className="mt-auto pt-7">
+            <Users className="text-white/80 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110 group-active:scale-95" />
+            <div className="mt-auto pt-7 transition-transform duration-200 group-hover:translate-x-0.5">
               <h3 className="font-medium">Friends and study</h3>
               <p className="mt-1 text-sm text-white/50">Discover and follow classmates to grow your study circle.</p>
             </div>
