@@ -10,9 +10,9 @@ const ProfileRow = ({ user, isOnline }: { user: SocialProfile; isOnline: boolean
   const avatar = getAvatarOption(user.avatar_id);
 
   return (
-    <div className="relative flex min-h-16 items-center gap-3 overflow-hidden py-3">
-      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/5 transition-transform duration-200 ease-out group-hover:rotate-6 group-hover:scale-110 group-active:scale-100 ${isOnline ? "ring-1 ring-white/60" : "border border-white/10"}`}>
-        <img src={avatar.image} alt={user.full_name} className="h-full w-full object-cover transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110" />
+    <div className="relative flex min-h-16 items-center gap-3 py-3">
+      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full ${isOnline ? "ring-1 ring-white/60" : ""}`}>
+        <img src={avatar.image} alt={user.full_name} className="h-full w-full object-cover" />
         <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-zinc-950 ${isOnline ? "bg-white" : "bg-white/25"}`} aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">

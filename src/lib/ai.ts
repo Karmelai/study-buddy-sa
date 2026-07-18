@@ -19,6 +19,19 @@ export type PaperRequest = {
   memo_storage_path: string;
 };
 
+export type HighlightStudyRequest = {
+  highlightedText: string;
+  message?: string;
+  conversation?: Array<{ role: "user" | "assistant"; content: string }>;
+  subject: string;
+  activeStudyMode: PaperMode;
+};
+
+export type PastPaperUrls = {
+  pdfUrl: string;
+  memoUrl: string;
+};
+
 type PaperContextSource = {
   pdf_storage_path?: string | null;
   memo_storage_path?: string | null;
@@ -59,7 +72,15 @@ const formatPrompt = (messages: ChatMessage[], userName: string) => {
   const systemMessage = extractText(messages.find((message) => message.role === "system")?.content);
   const conversation = messages
     .filter((message) => message.role !== "system")
-    .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${extractText(message.content)}`)
+    .map((message) => {
+      const content = extractText(message.content);
+      const photoNote = message.image
+        ? content
+          ? " [Photo attached]"
+          : " [Photo attached; no written request was provided.]"
+        : "";
+      return `${message.role === "assistant" ? "Assistant" : "User"}: ${content}${photoNote}`;
+    })
     .join("\n");
 
   return [
@@ -113,6 +134,45 @@ const readGeminiStream = async (response: Response) => {
   consumeLine(buffer.trim());
   return text;
 };
+
+export async function callPastPaperAI(request: HighlightStudyRequest): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const response = await fetch(`${supabaseUrl}/functions/v1/gemini-proxy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseAnonKey,
+      ...(sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+    },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error ?? "AI request failed.");
+  }
+  const text = await readGeminiStream(response);
+  if (!text.trim()) throw new Error("AI request returned an empty response.");
+  return text;
+}
+
+export async function getPastPaperUrls(pdfStoragePath: string, memoStoragePath: string): Promise<PastPaperUrls> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error("Please sign in again to open this paper.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/gemini-proxy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
+    body: JSON.stringify({ action: "paper_urls", pdf_storage_path: pdfStoragePath, memo_storage_path: memoStoragePath }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.error ?? "We could not open this paper.");
+  }
+  return response.json() as Promise<PastPaperUrls>;
+}
 
 export async function callAI(
   messages: ChatMessage[],

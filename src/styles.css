@@ -2,6 +2,91 @@
 @source "../src";
 @import "tw-animate-css";
 
+.notes-editor {
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.notes-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.notes-editor h1 {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.notes-editor h2 {
+  margin: 1.35rem 0 0.65rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.notes-editor h3,
+.notes-editor h4 {
+  margin: 1.15rem 0 0.55rem;
+  font-size: 1.1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.notes-editor p {
+  margin: 0 0 1rem;
+}
+.notes-editor ul,
+.notes-editor ol {
+  margin: 0 0 1rem 1.5rem;
+}
+.notes-editor ul {
+  list-style: disc;
+}
+.notes-editor ol {
+  list-style: decimal;
+}
+.notes-editor label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.notes-editor .highlight {
+  background: rgb(234 179 8 / 32%);
+}
+.notes-editor .karmel-code-block {
+  overflow-x: auto;
+  margin: 1rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in oklch, var(--border), transparent 15%);
+  border-radius: 0.85rem;
+  background: color-mix(in oklch, var(--card), black 20%);
+  color: color-mix(in oklch, var(--foreground), white 6%);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  white-space: pre;
+}
+.notes-editor .karmel-code-block[data-language]::before {
+  content: attr(data-language);
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--muted-foreground);
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.notes-editor .karmel-equation {
+  display: block;
+  overflow-x: auto;
+  margin: 1rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--primary), transparent 65%);
+  border-radius: 0.85rem;
+  background: color-mix(in oklch, var(--primary), transparent 92%);
+  text-align: center;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*

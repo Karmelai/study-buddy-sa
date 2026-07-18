@@ -41,9 +41,11 @@ export interface RadioContextValue {
   isLoading: boolean;
   error: string | null;
   openPanel: boolean;
+  isVisible: boolean;
   togglePlayback: () => Promise<void>;
   toggleMuted: () => void;
   setVolume: (volume: number) => void;
   setOpenPanel: (open: boolean) => void;
+  setIsVisible: (visible: boolean) => void;
   refreshNowPlaying: () => Promise<void>;
 }

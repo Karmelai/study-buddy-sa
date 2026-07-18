@@ -19,7 +19,7 @@ export function RadioToggle() {
             {isPlaying && <span className="karmel-radio-live-pulse" aria-hidden="true" />}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="left">Open Karmel Radio</TooltipContent>
+        <TooltipContent side="right">Open Karmel Radio</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

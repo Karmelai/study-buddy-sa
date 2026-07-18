@@ -1,4 +1,4 @@
-.karmel-radio { position: fixed; z-index: 45; right: 1.5rem; bottom: 1.5rem; }
+.karmel-radio { position: fixed; z-index: 45; left: 1.5rem; bottom: 1.5rem; }
 .karmel-radio-toggle, .karmel-radio-icon-button, .karmel-radio-play-button { display: grid; place-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--foreground); transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
 .karmel-radio-toggle { position: relative; width: 3.25rem; height: 3.25rem; margin-left: auto; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 12px 28px color-mix(in srgb, var(--foreground) 22%, transparent); }
 .karmel-radio-toggle:hover, .karmel-radio-play-button:hover { transform: translateY(-2px); }
@@ -15,5 +15,5 @@
 .karmel-radio-controls { gap: .5rem; }.karmel-radio-play-button { width: 2.5rem; height: 2.5rem; border: 0; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); }.karmel-radio-play-button:disabled { cursor: wait; opacity: .65; transform: none; }.karmel-radio-volume { flex: 1; }.karmel-radio-volume input { width: 100%; accent-color: var(--primary); }.karmel-radio-status { margin-top: .75rem; color: var(--muted-foreground); font-size: .72rem; }.karmel-radio-status.is-error { color: var(--destructive); }
 .karmel-radio button:focus-visible, .karmel-radio input:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 @keyframes karmel-radio-panel-in { from { opacity: 0; transform: translateY(.65rem) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } } @keyframes karmel-radio-pulse { 0% { box-shadow: 0 0 0 0 rgb(239 68 68 / 55%); } 70% { box-shadow: 0 0 0 .45rem rgb(239 68 68 / 0%); } 100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0%); } }
-@media (max-width: 640px) { .karmel-radio { right: 1rem; bottom: 5.5rem; }.karmel-radio-panel { width: min(25rem, calc(100vw - 2rem)); } }
+@media (max-width: 640px) { .karmel-radio { left: 1rem; bottom: 5.5rem; }.karmel-radio-panel { width: min(25rem, calc(100vw - 2rem)); } }
 @media (prefers-reduced-motion: reduce) { .karmel-radio *, .karmel-radio *::before, .karmel-radio *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

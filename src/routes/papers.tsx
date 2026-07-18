@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Clock3, FileText, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Clock3, FileText, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
-import ChatInterface from "@/components/ChatInterface";
+import { PastPaperChat } from "@/components/PastPaperChat";
+import { PastPaperViewer } from "@/components/PastPaperViewer";
+import { getPastPaperUrls } from "@/lib/ai";
 import { supabase } from "@/lib/supabase";
 import { getSubjectConfigForGrade, type PastPaper, useKarmelStore } from "@/store/useKarmelStore";
 
@@ -52,6 +54,11 @@ function Papers() {
   const [paperForModeSelection, setPaperForModeSelection] = useState<PastPaper | null>(null);
   const [examTimeLeft, setExamTimeLeft] = useState(EXAM_DURATION_SECONDS);
   const [isTimeUp, setIsTimeUp] = useState(false);
+  const [paperSignedUrl, setPaperSignedUrl] = useState<string | null>(null);
+  const [memoSignedUrl, setMemoSignedUrl] = useState<string | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  const [highlightedText, setHighlightedText] = useState<string | null>(null);
+  const [sessionDetailsOpen, setSessionDetailsOpen] = useState(false);
 
   const subjectConfig = getSubjectConfigForGrade(grade);
   const displaySubjects = savedSubjects.length > 0 ? savedSubjects : subjectConfig.subjects;
@@ -94,9 +101,27 @@ function Papers() {
     };
   }, [grade, subject]);
 
-  const chatContext = useMemo(() => {
-    if (!activePaper || !["guided", "exam", "high_yield"].includes(activeStudyMode ?? "")) return null;
-    return `Past paper session for ${getPaperLabel(activePaper)} (Grade ${activePaper.grade} ${activePaper.subject}). Use the attached official memo as the source of truth.`;
+  useEffect(() => {
+    let cancelled = false;
+    setPaperSignedUrl(null);
+    setMemoSignedUrl(null);
+    setViewerError(null);
+    setHighlightedText(null);
+    if (!activePaper || !["guided", "exam", "high_yield"].includes(activeStudyMode ?? "")) return;
+    if (!activePaper.pdf_storage_path || !activePaper.memo_storage_path) {
+      setViewerError("This paper is missing its question paper or memorandum file.");
+      return;
+    }
+
+    void getPastPaperUrls(activePaper.pdf_storage_path, activePaper.memo_storage_path).then((urls) => {
+      if (cancelled) return;
+      setPaperSignedUrl(urls.pdfUrl);
+      setMemoSignedUrl(urls.memoUrl);
+    }).catch((cause) => {
+      if (!cancelled) setViewerError(cause instanceof Error ? cause.message : "We could not open the question paper.");
+    });
+
+    return () => { cancelled = true; };
   }, [activePaper, activeStudyMode]);
 
   useEffect(() => {
@@ -133,17 +158,20 @@ function Papers() {
 
   const startPaperMode = (mode: PaperStudyMode) => {
     if (!paperForModeSelection) return;
+    setSessionDetailsOpen(false);
     setActivePaper(paperForModeSelection);
     setActiveStudyMode(mode);
     setPaperForModeSelection(null);
   };
 
   const exitPaperSession = () => {
+    setSessionDetailsOpen(false);
     setActivePaper(null);
     setActiveStudyMode(null);
+    setHighlightedText(null);
   };
 
-  const isPaperSession = activePaper && chatContext && (activeStudyMode === "guided" || activeStudyMode === "exam" || activeStudyMode === "high_yield");
+  const isPaperSession = activePaper && (activeStudyMode === "guided" || activeStudyMode === "exam" || activeStudyMode === "high_yield");
 
   if (isPaperSession) {
     const selectedPaper = activePaper;
@@ -153,17 +181,11 @@ function Papers() {
 
     return (
       <AppShell>
-        <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden mx-auto">
-          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-4">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Grade {activePaper.grade} · {activePaper.subject} · {modeLabel}</p>
-              <h1 className="truncate text-lg">{getPaperLabel(activePaper)}</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              {activeStudyMode === "exam" ? <span className="rounded-full border border-border bg-card px-3 py-1 font-mono text-sm">{formatTime(examTimeLeft)}</span> : null}
-              <button onClick={exitPaperSession} className="shrink-0 text-sm text-muted-foreground hover:text-foreground">Exit</button>
-            </div>
-          </div>
+        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+          <button type="button" onClick={() => setSessionDetailsOpen((open) => !open)} className="absolute left-1/2 top-0 z-30 grid h-11 w-11 -translate-x-1/2 -translate-y-1/3 place-items-center text-muted-foreground transition hover:text-foreground" aria-label="Toggle session details" aria-expanded={sessionDetailsOpen}>
+            <ChevronDown size={27} className={`transition-transform ${sessionDetailsOpen ? "rotate-180" : ""}`} />
+          </button>
+          {sessionDetailsOpen && <div className="shrink-0 border-b border-border px-6 pb-3 pt-6"><div className="mx-auto w-full max-w-3xl"><p className="text-xs uppercase tracking-widest text-muted-foreground">Grade {activePaper.grade} · {activePaper.subject} · {modeLabel}</p><h1 className="mt-1 truncate text-lg">{getPaperLabel(activePaper)}</h1>{activeStudyMode === "exam" ? <span className="mt-2 inline-block font-mono text-xs text-muted-foreground">{formatTime(examTimeLeft)}</span> : null}</div></div>}
           <div className="min-h-0 flex-1 overflow-hidden">
             {isTimeUp ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
@@ -172,9 +194,12 @@ function Papers() {
                 <p className="mt-2 max-w-md text-sm text-muted-foreground">Your {duration}-minute exam simulation has ended. Chat input is now disabled.</p>
                 <button onClick={exitPaperSession} className="mt-6 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-accent">Return to papers</button>
               </div>
-            ) : (
-              <ChatInterface mode={chatMode} subject={activePaper.subject} contextNote={chatContext} />
-            )}
+            ) : viewerError ? <div className="grid h-full place-items-center p-6 text-sm text-destructive">{viewerError}</div>
+              : !paperSignedUrl ? <div className="grid h-full place-items-center p-6 text-sm text-muted-foreground">Loading your paper…</div>
+                : <div className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.6fr)]">
+                  <PastPaperViewer pdfUrl={paperSignedUrl} memoUrl={memoSignedUrl ?? undefined} showMemoToggle={activeStudyMode === "guided"} onSendHighlight={setHighlightedText} onExit={exitPaperSession} />
+                  <PastPaperChat highlightedText={highlightedText} onClearHighlight={() => setHighlightedText(null)} subject={activePaper.subject} mode={activeStudyMode as PaperStudyMode} />
+                </div>}
           </div>
         </div>
       </AppShell>

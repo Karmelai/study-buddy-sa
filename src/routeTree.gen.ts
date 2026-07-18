@@ -10,13 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TimerRouteImport } from './routes/timer'
+import { Route as TestRouteImport } from './routes/test'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SummaryRouteImport } from './routes/summary'
 import { Route as StudyRouteImport } from './routes/study'
+import { Route as QuizRouteImport } from './routes/quiz'
 import { Route as PapersRouteImport } from './routes/papers'
 import { Route as OurStoryRouteImport } from './routes/our-story'
+import { Route as NotesRouteImport } from './routes/notes'
 import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as FriendsRouteImport } from './routes/friends'
+import { Route as FlashcardsRouteImport } from './routes/flashcards'
+import { Route as ExtractRouteImport } from './routes/extract'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -25,14 +32,29 @@ const TimerRoute = TimerRouteImport.update({
   path: '/timer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TestRoute = TestRouteImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SummaryRoute = SummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuizRoute = QuizRouteImport.update({
+  id: '/quiz',
+  path: '/quiz',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PapersRoute = PapersRouteImport.update({
@@ -43,6 +65,11 @@ const PapersRoute = PapersRouteImport.update({
 const OurStoryRoute = OurStoryRouteImport.update({
   id: '/our-story',
   path: '/our-story',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JourneyRoute = JourneyRouteImport.update({
@@ -60,6 +87,21 @@ const FriendsRoute = FriendsRouteImport.update({
   path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FlashcardsRoute = FlashcardsRouteImport.update({
+  id: '/flashcards',
+  path: '/flashcards',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtractRoute = ExtractRouteImport.update({
+  id: '/extract',
+  path: '/extract',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -74,38 +116,59 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/extract': typeof ExtractRoute
+  '/flashcards': typeof FlashcardsRoute
   '/friends': typeof FriendsRoute
   '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/notes': typeof NotesRoute
   '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
+  '/quiz': typeof QuizRoute
   '/study': typeof StudyRoute
+  '/summary': typeof SummaryRoute
   '/terms': typeof TermsRoute
+  '/test': typeof TestRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/extract': typeof ExtractRoute
+  '/flashcards': typeof FlashcardsRoute
   '/friends': typeof FriendsRoute
   '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/notes': typeof NotesRoute
   '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
+  '/quiz': typeof QuizRoute
   '/study': typeof StudyRoute
+  '/summary': typeof SummaryRoute
   '/terms': typeof TermsRoute
+  '/test': typeof TestRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/extract': typeof ExtractRoute
+  '/flashcards': typeof FlashcardsRoute
   '/friends': typeof FriendsRoute
   '/how-it-works': typeof HowItWorksRoute
   '/journey': typeof JourneyRoute
+  '/notes': typeof NotesRoute
   '/our-story': typeof OurStoryRoute
   '/papers': typeof PapersRoute
+  '/quiz': typeof QuizRoute
   '/study': typeof StudyRoute
+  '/summary': typeof SummaryRoute
   '/terms': typeof TermsRoute
+  '/test': typeof TestRoute
   '/timer': typeof TimerRoute
 }
 export interface FileRouteTypes {
@@ -113,50 +176,78 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/calendar'
+    | '/extract'
+    | '/flashcards'
     | '/friends'
     | '/how-it-works'
     | '/journey'
+    | '/notes'
     | '/our-story'
     | '/papers'
+    | '/quiz'
     | '/study'
+    | '/summary'
     | '/terms'
+    | '/test'
     | '/timer'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/calendar'
+    | '/extract'
+    | '/flashcards'
     | '/friends'
     | '/how-it-works'
     | '/journey'
+    | '/notes'
     | '/our-story'
     | '/papers'
+    | '/quiz'
     | '/study'
+    | '/summary'
     | '/terms'
+    | '/test'
     | '/timer'
   id:
     | '__root__'
     | '/'
     | '/auth'
+    | '/calendar'
+    | '/extract'
+    | '/flashcards'
     | '/friends'
     | '/how-it-works'
     | '/journey'
+    | '/notes'
     | '/our-story'
     | '/papers'
+    | '/quiz'
     | '/study'
+    | '/summary'
     | '/terms'
+    | '/test'
     | '/timer'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  CalendarRoute: typeof CalendarRoute
+  ExtractRoute: typeof ExtractRoute
+  FlashcardsRoute: typeof FlashcardsRoute
   FriendsRoute: typeof FriendsRoute
   HowItWorksRoute: typeof HowItWorksRoute
   JourneyRoute: typeof JourneyRoute
+  NotesRoute: typeof NotesRoute
   OurStoryRoute: typeof OurStoryRoute
   PapersRoute: typeof PapersRoute
+  QuizRoute: typeof QuizRoute
   StudyRoute: typeof StudyRoute
+  SummaryRoute: typeof SummaryRoute
   TermsRoute: typeof TermsRoute
+  TestRoute: typeof TestRoute
   TimerRoute: typeof TimerRoute
 }
 
@@ -169,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TimerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -176,11 +274,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/summary': {
+      id: '/summary'
+      path: '/summary'
+      fullPath: '/summary'
+      preLoaderRoute: typeof SummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/study': {
       id: '/study'
       path: '/study'
       fullPath: '/study'
       preLoaderRoute: typeof StudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quiz': {
+      id: '/quiz'
+      path: '/quiz'
+      fullPath: '/quiz'
+      preLoaderRoute: typeof QuizRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/papers': {
@@ -195,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/our-story'
       fullPath: '/our-story'
       preLoaderRoute: typeof OurStoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/journey': {
@@ -218,6 +337,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/flashcards': {
+      id: '/flashcards'
+      path: '/flashcards'
+      fullPath: '/flashcards'
+      preLoaderRoute: typeof FlashcardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extract': {
+      id: '/extract'
+      path: '/extract'
+      fullPath: '/extract'
+      preLoaderRoute: typeof ExtractRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -238,13 +378,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  CalendarRoute: CalendarRoute,
+  ExtractRoute: ExtractRoute,
+  FlashcardsRoute: FlashcardsRoute,
   FriendsRoute: FriendsRoute,
   HowItWorksRoute: HowItWorksRoute,
   JourneyRoute: JourneyRoute,
+  NotesRoute: NotesRoute,
   OurStoryRoute: OurStoryRoute,
   PapersRoute: PapersRoute,
+  QuizRoute: QuizRoute,
   StudyRoute: StudyRoute,
+  SummaryRoute: SummaryRoute,
   TermsRoute: TermsRoute,
+  TestRoute: TestRoute,
   TimerRoute: TimerRoute,
 }
 export const routeTree = rootRouteImport

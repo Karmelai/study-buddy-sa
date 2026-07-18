@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ChatInterface from "@/components/ChatInterface";
 import { getSubjectConfigForGrade, useKarmelStore } from "@/store/useKarmelStore";
-import { TEACHER_MODES } from "@/lib/prompts";
 
 export const Route = createFileRoute("/study")({
   head: () => ({ meta: [{ title: "Study - KARMEL" }] }),
@@ -11,27 +11,29 @@ export const Route = createFileRoute("/study")({
 });
 
 const STUDENT_MODES = [
-  { id: "explain", label: "Explain a Topic", desc: "Break down any topic step-by-step." },
-  { id: "practice_test", label: "Practice & Test", desc: "Choose practice questions or a quick knowledge check." },
-  { id: "guided_study", label: "Guided Study Session", desc: "Study actively with an interactive AI partner that breaks down chapters step-by-step." },
-  { id: "pat_help", label: "Help with your PAT", desc: "Get guidance, structure planning, and rubric checks for your Practical Assessment Task." },
-  { id: "summarize", label: "Summarize Key Notes", desc: "Concise study notes on a topic." },
+  {
+    id: "guided_study",
+    label: "Guided Study Session",
+    desc: "Study actively with an interactive AI partner that breaks down chapters step-by-step.",
+  },
   { id: "revision", label: "Revision Plan", desc: "Personalized plan up to exam day." },
 ];
 
-const subjectButtonClass = "text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-primary/70 hover:bg-accent hover:shadow-lg hover:shadow-primary/10 active:translate-y-0 active:scale-[0.98]";
-const studyModeCardClass = "group rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-primary/70 hover:bg-accent hover:shadow-xl hover:shadow-primary/10 active:translate-y-0 active:scale-[0.985]";
+const subjectButtonClass =
+  "text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-primary/70 hover:bg-accent hover:shadow-lg hover:shadow-primary/10 active:translate-y-0 active:scale-[0.98]";
+const studyModeCardClass =
+  "group rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-primary/70 hover:bg-accent hover:shadow-xl hover:shadow-primary/10 active:translate-y-0 active:scale-[0.985]";
 
 function Study() {
   const grade = useKarmelStore((s) => s.grade);
-  const role = useKarmelStore((s) => s.role);
   const savedSubjects = useKarmelStore((s) => s.subjects);
   const setSubjects = useKarmelStore((s) => s.setSubjects);
   const subjectConfig = getSubjectConfigForGrade(grade);
   const [subject, setSubject] = useState<string | null>(null);
   const [mode, setMode] = useState<string | null>(null);
+  const [sessionDetailsOpen, setSessionDetailsOpen] = useState(false);
   const setLast = useKarmelStore((s) => s.setLast);
-  const MODES = useMemo(() => (role === "teacher" ? TEACHER_MODES : STUDENT_MODES), [role]);
+  const MODES = STUDENT_MODES;
 
   useEffect(() => {
     setSubject(null);
@@ -51,27 +53,39 @@ function Study() {
     const modeLabel = MODES.find((m) => m.id === mode)?.label ?? mode;
     return (
       <AppShell>
-        <div className="flex-1 min-h-0 flex flex-col max-w-3xl w-full mx-auto overflow-hidden">
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-white/40">{subject}</p>
-              <h1 className="text-lg">{modeLabel}</h1>
-            </div>
-            <button
-              onClick={() => {
-                setLast(subject, mode);
-                setMode(null);
-              }}
-              className="text-sm text-white/50 hover:text-white"
-            >
-              Change
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <ChatInterface
-              mode={mode}
-              subject={subject}
+        <div className="relative flex-1 min-h-0 flex flex-col max-w-3xl w-full mx-auto overflow-hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setLast(subject, mode);
+              setMode(null);
+              setSessionDetailsOpen(false);
+            }}
+            className="absolute right-5 top-3 z-30 rounded-full border border-white/15 bg-background/30 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur transition hover:text-white"
+            aria-label="Exit study session"
+          >
+            Exit Session
+          </button>
+          <button
+            type="button"
+            onClick={() => setSessionDetailsOpen((open) => !open)}
+            className="absolute left-1/2 top-0 z-30 grid h-11 w-11 -translate-x-1/2 -translate-y-1/3 place-items-center text-white/55 transition hover:text-white"
+            aria-label="Toggle session details"
+            aria-expanded={sessionDetailsOpen}
+          >
+            <ChevronDown
+              size={27}
+              className={`transition-transform ${sessionDetailsOpen ? "rotate-180" : ""}`}
             />
+          </button>
+          {sessionDetailsOpen && (
+            <div className="shrink-0 border-b border-border px-6 pb-3 pt-6">
+              <p className="text-xs uppercase tracking-widest text-white/40">{subject}</p>
+              <h1 className="mt-1 text-lg">{modeLabel}</h1>
+            </div>
+          )}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ChatInterface mode={mode} subject={subject} autoStart={mode === "guided_study"} />
           </div>
         </div>
       </AppShell>
@@ -83,12 +97,12 @@ function Study() {
       <div className="max-w-4xl mx-auto w-full px-6 py-12 space-y-10">
         <div>
           <p className="text-xs uppercase tracking-widest text-white/40">Step 1</p>
-          <h1 className="text-2xl mt-1">{savedSubjects.length > 0 ? "Your subjects" : "Choose a subject"}</h1>
+          <h1 className="text-2xl mt-1">
+            {savedSubjects.length > 0 ? "Your subjects" : "Choose a subject"}
+          </h1>
           <p className="mt-2 text-sm text-white/50">
             {savedSubjects.length > 0
-              ? role === "teacher"
-                ? "Select a subject to build resources and guide your students."
-                : "Choose the subject you want to study"
+              ? "Choose the subject you want to study"
               : subjectConfig.type === "senior"
                 ? "These grades follow the senior phase compulsory subject list."
                 : "Choose the subjects that apply to your learner."}
@@ -142,11 +156,18 @@ function Study() {
               {MODES.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => setMode(m.id)}
+                  onClick={() => {
+                    setSessionDetailsOpen(false);
+                    setMode(m.id);
+                  }}
                   className={studyModeCardClass}
                 >
-                  <h3 className="font-medium transition-transform duration-200 group-hover:translate-x-1">{m.label}</h3>
-                  <p className="text-white/50 text-sm mt-1 transition-transform duration-200 group-hover:translate-x-1">{m.desc}</p>
+                  <h3 className="font-medium transition-transform duration-200 group-hover:translate-x-1">
+                    {m.label}
+                  </h3>
+                  <p className="text-white/50 text-sm mt-1 transition-transform duration-200 group-hover:translate-x-1">
+                    {m.desc}
+                  </p>
                 </button>
               ))}
             </div>

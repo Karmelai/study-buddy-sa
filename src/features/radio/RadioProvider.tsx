@@ -22,12 +22,15 @@ const DEFAULT_NOW_PLAYING: NowPlaying = {
 
 export const RadioContext = createContext<RadioContextValue | null>(null);
 
-const radioMode = import.meta.env.VITE_KARMEL_RADIO_MODE ?? "azuracast";
+// Keep development quiet when the optional broadcast service is not running.
+// Set VITE_KARMEL_RADIO_MODE=azuracast to test the live radio integration locally.
+const radioMode =
+  import.meta.env.VITE_KARMEL_RADIO_MODE || (import.meta.env.DEV ? "off" : "azuracast");
 const nowPlayingUrl = import.meta.env.VITE_KARMEL_NOW_PLAYING_URL ?? "/karmel-radio/api/nowplaying";
 const streamUrl =
   radioMode === "local"
-    ? import.meta.env.VITE_KARMEL_LOCAL_AUDIO_URL ?? "/audio/karmel-radio/snow-man.mp3"
-    : import.meta.env.VITE_KARMEL_STREAM_URL ?? "/karmel-radio/stream";
+    ? (import.meta.env.VITE_KARMEL_LOCAL_AUDIO_URL ?? "/audio/karmel-radio/snow-man.mp3")
+    : (import.meta.env.VITE_KARMEL_STREAM_URL ?? "/karmel-radio/stream");
 
 export function RadioProvider({ children }: { children: ReactNode }) {
   const isAuthed = useKarmelStore((state) => state.isAuthed);
@@ -40,12 +43,20 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
   const [nowPlaying, setNowPlaying] = useState(DEFAULT_NOW_PLAYING);
-  const [stationOnline, setStationOnline] = useState(true);
+  const [stationOnline, setStationOnline] = useState(radioMode !== "off");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openPanel, setOpenPanelState] = useState(false);
+  const [isVisible, setIsVisibleState] = useState(true);
 
   const refreshNowPlaying = useCallback(async () => {
+    if (radioMode === "off") {
+      setNowPlaying(DEFAULT_NOW_PLAYING);
+      setStationOnline(false);
+      setError(null);
+      metadataFailedRef.current = false;
+      return;
+    }
     if (radioMode === "local") {
       setNowPlaying(DEFAULT_NOW_PLAYING);
       setStationOnline(true);
@@ -80,7 +91,6 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       setStationOnline(online);
       setError(null);
       metadataFailedRef.current = false;
-
     } catch (caught) {
       if ((caught as DOMException).name !== "AbortError") {
         if (import.meta.env.DEV) console.error("Karmel Radio Now Playing request failed", caught);
@@ -101,10 +111,12 @@ export function RadioProvider({ children }: { children: ReactNode }) {
         volume?: number;
         muted?: boolean;
         openPanel?: boolean;
+        visible?: boolean;
       };
       if (typeof saved.volume === "number") setVolumeState(Math.min(1, Math.max(0, saved.volume)));
       if (typeof saved.muted === "boolean") setIsMuted(saved.muted);
       if (typeof saved.openPanel === "boolean") setOpenPanelState(saved.openPanel);
+      if (typeof saved.visible === "boolean") setIsVisibleState(saved.visible);
     } catch {
       // Local storage is optional; defaults keep the player usable.
     }
@@ -118,10 +130,14 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   }, [isMuted, volume]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ volume, muted: isMuted, openPanel }));
-  }, [isMuted, openPanel, volume]);
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ volume, muted: isMuted, openPanel, visible: isVisible }),
+    );
+  }, [isMuted, isVisible, openPanel, volume]);
 
   useEffect(() => {
+    if (radioMode === "off") return;
     let pollingTimer: number | undefined;
     let cancelled = false;
     const poll = async () => {
@@ -145,6 +161,11 @@ export function RadioProvider({ children }: { children: ReactNode }) {
     },
     [refreshNowPlaying],
   );
+
+  const setIsVisible = useCallback((visible: boolean) => {
+    setIsVisibleState(visible);
+    if (!visible) setOpenPanelState(false);
+  }, []);
 
   const setVolume = useCallback((nextVolume: number) => {
     setVolumeState(Math.min(1, Math.max(0, nextVolume)));
@@ -177,8 +198,40 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<RadioContextValue>(
-    () => ({ isPlaying, isMuted, volume, nowPlaying, stationOnline, isLoading, error, openPanel, togglePlayback, toggleMuted, setVolume, setOpenPanel, refreshNowPlaying }),
-    [error, isLoading, isMuted, isPlaying, nowPlaying, openPanel, refreshNowPlaying, setOpenPanel, setVolume, stationOnline, toggleMuted, togglePlayback, volume],
+    () => ({
+      isPlaying,
+      isMuted,
+      volume,
+      nowPlaying,
+      stationOnline,
+      isLoading,
+      error,
+      openPanel,
+      isVisible,
+      togglePlayback,
+      toggleMuted,
+      setVolume,
+      setOpenPanel,
+      setIsVisible,
+      refreshNowPlaying,
+    }),
+    [
+      error,
+      isLoading,
+      isMuted,
+      isPlaying,
+      isVisible,
+      nowPlaying,
+      openPanel,
+      refreshNowPlaying,
+      setOpenPanel,
+      setIsVisible,
+      setVolume,
+      stationOnline,
+      toggleMuted,
+      togglePlayback,
+      volume,
+    ],
   );
 
   return (
@@ -190,10 +243,14 @@ export function RadioProvider({ children }: { children: ReactNode }) {
         onPause={() => setIsPlaying(false)}
         onWaiting={() => setIsLoading(true)}
         onCanPlay={() => setIsLoading(false)}
-        onError={() => { setIsLoading(false); setIsPlaying(false); setError("The live stream could not be played right now."); }}
+        onError={() => {
+          setIsLoading(false);
+          setIsPlaying(false);
+          setError("The live stream could not be played right now.");
+        }}
       />
       {children}
-      {isAuthed && <RadioPlayer />}
+      {isAuthed && isVisible && <RadioPlayer />}
     </RadioContext.Provider>
   );
 }
